@@ -1,0 +1,171 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.6;
+
+import "./Ownable.sol";
+contract Espoir is Ownable {
+    // 系统相关
+    uint public houseCut; // 庄家抽成比例
+    bool public gamePaused; // 游戏是否暂停
+    // 船班相关
+    struct Voyage {
+        uint entryFee; // 入场金
+        uint startStar; // 起始星星数
+        uint winStar; //获胜星星数
+        uint startBlock; // 起始区块
+        uint waitBlocks; // 等候报名时间（等候几个区块）
+        uint gameBlocks; // 游戏时间（历经几个区块）
+    }
+    mapping(uint => Voyage) public voyages; // 船班映射
+    // Table相关
+    struct Table {
+        bytes32 firstHash; // 第一组Hash
+        string firstPlaintext; // 第一组明文
+        bytes32 secondHash; // 第二组Hash
+        string secondPlaintext; // 第二组明文
+        bool isEnded; // 是否结束
+    }
+    struct Player {
+        string tgId; // TG ID
+        uint stars; // 星星数量
+        string status; // 状态（游戏中，0星出局，犯规出局，胜，负）
+        uint cardCount; //手上剩余牌数，如果完成一局Table，则扣1
+        mapping(bytes32 => bool) cards; // 卡牌（用卡牌HASH作为Key），如果换牌了，玩家旧牌false，并增加新牌
+    }
+    struct Trade {
+        bytes32 firstHash; // 第一组Hash，原本归属钱包地址
+        address firstOwner; // 第一组Hash的原本归属钱包地址
+        bytes32 secondHash; // 第二组Hash，原本归属钱包地址
+        address secondOwner; // 第二组Hash的原本归属钱包地址
+        bool isCompleted //交易是否完成，避免有人一牌多换，最后检查双方牌归属都是正确的，Hash都是正确，才执行交换
+    }
+
+    struct Ship {
+        uint voyageId; // 所属船班编号
+        bool isSettled; // 状态：是否结算
+        mapping(string => uint256) cardCounts; // 卡牌数量（三种牌分开计数）使用映射以节省Gas
+        uint playerCount; // 全部玩家数量（不论死活）
+        uint playerOut; //出局玩家数量
+        uint tablesCount; //当前活跃桌数，如果Table被创建+1,如果Table对决结束-1，用来检查能不能开新桌
+        mapping(uint => Table) tables; // Table映射
+        mapping(address => Player) players; // 玩家映射
+        mapping(uint => Trade) trades; // 交易厅映射
+    }
+
+    mapping(uint => Ship) public ships; // 船只映射
+
+    // 全局玩家清单
+    struct GlobalPlayer {
+        uint wins; // 胜数
+        uint losses; // 败数
+    }
+
+    mapping(address => GlobalPlayer) public globalPlayers; // 全局玩家映射
+
+    constructor(uint _houseCut) {
+        houseCut = _houseCut;
+    }
+
+    // 系统相关功能
+    function setHouseCut(uint _houseCut) public onlyOwner {
+        houseCut = _houseCut;
+    }
+
+    function pauseGame(bool _pause) public onlyOwner {
+        gamePaused = _pause;
+    }
+
+    // 船班相关功能
+function createVoyage(uint _id, uint _entryFee, uint _startStar, uint _winStar, uint _startBlock, uint _waitBlocks, uint _gameBlocks) public onlyOwner {
+        voyages[_id] = Voyage({
+            entryFee: _entryFee,
+            startStar: _startStar,
+            winStar: _winStar,
+            startBlock: _startBlock,
+            waitBlocks: _waitBlocks,
+            gameBlocks: _gameBlocks
+        });
+    }
+    function getVoyage(uint _id) public view returns (Voyage memory) {
+        return voyages[_id];
+    }
+
+    // 船只相关功能
+    function createShip(uint _shipId, uint _voyageId) internal {
+        Ship storage newShip = ships[_shipId];
+        newShip.voyageId = _voyageId;
+        newShip.isSettled = false;
+    }
+
+// TODO: function registerPlayer 玩家注册，如果还没有船就Call createShip创建一艘船
+// TODO: function addCardToPlayer 前端产生12组牌跟hash，hash存入玩家的资料中
+// TODO:创建Table
+//     - 检查船只是否结算，已结算则无法进行
+//     - 当前有效的Table如果大于存活人数的一半，则无法再新增Table
+//     - 创建Table的玩家需要提交手上有效的卡牌Hash，无效hash则无法送出
+// TODO:加入Table
+//     - 检查船只是否结算，已结算则无法进行
+//     - 针对生效中的Table，提交有效的卡牌hash，提交前需要检查hash是否有效
+// TODO: Table Open，提交明文
+//     - 两人中第一个提交明文，检查明文是否符合Hash
+//     - 第二个提交明文，检查明文是否符合Hash，并结算Table
+//     - 结算Table后，胜者加一颗星星
+//     - 扣除船只上的牌型计数
+
+// TODO: 明文检查，玩家贴入明文后，确认牌跟Hash一致，不一致则违规出局！丧失资格
+// TODO:
+// TODO:交换牌的归属
+//     - 检查船只是否结算，已结算则无法进行
+//     - 检查hash是否有效，无效则无法进行
+//     - 交易厅完成两个hash上传后，两边归属交换
+// TODO:结算当前船只进度
+//     - 检查是否符合结算条件
+//     - 结算人员胜败跟金额（必须手上没有剩牌，且剩下超过3颗星）
+//     - 如果时间到了，但有Table没有完结，视同手上还有牌，都出局
+//     - 分配金额（按照胜者的星星总数评分）
+// TODO: 庄家抽成储存到指定合约地址的功能 OwnerOnly（后续设计败部复活赛用）
+
+//  检查牌是否合规
+    function checkCardValidity(
+        uint _shipId,
+        address _walletAddress,
+        bytes32 _cardHash
+    ) public view returns (bool) {
+        Ship storage ship = ships[_shipId];
+        Player storage player = ship.players[_walletAddress];
+        return player.cards[_cardHash];
+    }
+
+// 全局玩家清单相关功能
+    function updateGlobalPlayer(address _walletAddress, bool _won) internal {
+        GlobalPlayer storage player = globalPlayers[_walletAddress];
+        
+        // 如果玩家记录不存在，创建新记录
+        if (player.wins == 0 && player.losses == 0) {
+            globalPlayers[_walletAddress] = GlobalPlayer({
+                wins: _won ? 1 : 0,
+                losses: _won ? 0 : 1
+            });
+        } else {
+            // 更新已有记录
+            if (_won) {
+                player.wins += 1;
+            } else {
+                player.losses += 1;
+            }
+        }
+    }
+
+//  取得玩家全局记录
+    function getGlobalPlayer(
+        address _walletAddress
+    ) public view returns (GlobalPlayer memory) {
+        return globalPlayers[_walletAddress];
+    }
+
+// 提现功能
+    function withdraw(uint _amount, address _to) public onlyOwner {
+        payable(_to).transfer(_amount);
+    }
+
+    receive() external payable {}
+}
