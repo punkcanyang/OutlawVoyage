@@ -36,7 +36,7 @@ contract Espoir is Ownable {
         address firstOwner; // 第一组Hash的原本归属钱包地址
         bytes32 secondHash; // 第二组Hash，原本归属钱包地址
         address secondOwner; // 第二组Hash的原本归属钱包地址
-        bool isCompleted //交易是否完成，避免有人一牌多换，最后检查双方牌归属都是正确的，Hash都是正确，才执行交换
+        bool isCompleted; //交易是否完成，避免有人一牌多换，最后检查双方牌归属都是正确的，Hash都是正确，才执行交换
     }
 
     struct Ship {
