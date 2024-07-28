@@ -1,0 +1,29 @@
+{
+  "name": "outlawvoyage",
+  "version": "1.0.0",
+  "description": ">[「赌博默示录」（Kaiji）](https://movie.douban.com/subject/3035147/)是一部日本漫画，由福本伸行创作，后来被改编成动画和电影。在这部作品中，有一个非常著名的游戏叫做“石头剪刀布”，这是一个高度策略性的游戏。",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "compile": "npx hardhat compile",
+    "test": "npx hardhat test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OutlawVoyage/OutlawVoyage.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/OutlawVoyage/OutlawVoyage/issues"
+  },
+  "homepage": "https://github.com/OutlawVoyage/OutlawVoyage#readme",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "@openzeppelin/contracts": "^5.0.2",
+    "dotenv": "^16.4.5",
+    "hardhat": "^2.22.6"
+  }
+}

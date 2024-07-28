@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.6;
 
-import "./Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Espoir is Ownable {
+
+    constructor(uint _houseCut) Ownable(msg.sender){
+        houseCut = _houseCut;
+    }
     // 系统相关
     uint public houseCut; // 庄家抽成比例
     bool public gamePaused; // 游戏是否暂停
@@ -63,10 +67,6 @@ contract Espoir is Ownable {
     }
 
     mapping(address => GlobalPlayer) public globalPlayers; // 全局玩家映射
-
-    constructor(uint _houseCut) {
-        houseCut = _houseCut;
-    }
 
     // 系统相关功能
     // 设定抽成比例，例如30，就是先扣除30%
