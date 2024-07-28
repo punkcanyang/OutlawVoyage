@@ -7,7 +7,7 @@ dotenv.config();
 const {  ETH_SEPOILA_URL, PRIVATE_EKY = "", ETHERSCAN_PAIKEY } = process.env
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.24",
+  solidity: "0.8.6",
   networks: {
     sepolia: {
       url: ETH_SEPOILA_URL,
