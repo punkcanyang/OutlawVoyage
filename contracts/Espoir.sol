@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.6;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 
@@ -27,8 +27,11 @@ contract Espoir is Ownable {
         string firstPlaintext; // 第一组明文
         bytes32 secondHash; // 第二组Hash
         string secondPlaintext; // 第二组明文
+        address firstOwner; // 第一组Hash归属钱包地址
+        address secondOwner; // 第二组Hash归属钱包地址
         bool isEnded; // 是否结束
     }
+    // 玩家信息
     struct Player {
         string tgId; // TG ID
         uint stars; // 星星数量
@@ -36,8 +39,9 @@ contract Espoir is Ownable {
         uint cardCount; //手上剩余牌数，如果完成一局Table，则扣1
         mapping(bytes32 => bool) cards; // 卡牌（用卡牌HASH作为Key），如果换牌了，玩家旧牌false，并增加新牌
         bool isRegistered; // 用来检查是否已报名
-
+        address walletAddress; // 玩家钱包地址
     }
+    // 交易信息
     struct Trade {
         bytes32 firstHash; // 第一组Hash，原本归属钱包地址
         address firstOwner; // 第一组Hash的 原本归属钱包地址
@@ -48,6 +52,7 @@ contract Espoir is Ownable {
 // 船班，一班就是一场游戏
     struct Voyage {
         uint shipId; // 船编号
+
         bool isSettled; // 状态：是否结算
         mapping(string => uint256) cardCounts; // 卡牌数量（三种牌分开计数）使用映射以节省Gas
         uint playerCount; // 全部玩家数量（不论死活）
@@ -59,6 +64,7 @@ contract Espoir is Ownable {
     }
 
     mapping(uint => Voyage) public voyages; // 船只映射
+
 
     // 全局玩家清单
     struct GlobalPlayer {
@@ -133,6 +139,7 @@ contract Espoir is Ownable {
         return _voyageId == currentCycle + 1;
     }
 
+
     // 玩家注册，如果还没有船班就创建一艘船
     // function addCardToPlayer 前端产生12组牌跟hash，hash存入玩家的资料中，已经合并到registerPlayer
 
@@ -176,16 +183,30 @@ contract Espoir is Ownable {
     //     - 扣除船只上的牌型计数
 
     // TODO: 明文检查，玩家贴入明文后，确认牌跟Hash一致，不一致则违规出局！丧失资格
-    // TODO:
-    // TODO:交换牌的归属
-    //     - 检查船只是否结算，已结算则无法进行
-    //     - 检查hash是否有效，无效则无法进行
-    //     - 交易厅完成两个hash上传后，两边归属交换
-    // TODO:结算当前船只进度
-    //     - 检查是否符合结算条件
-    //     - 结算人员胜败跟金额（必须手上没有剩牌，且剩下超过3颗星）
-    //     - 如果时间到了，但有Table没有完结，视同手上还有牌，都出局
-    //     - 分配金额（按照胜者的星星总数评分）
+
+
+    // 交换牌的归属
+    // - 检查船只是否结算，已结算则无法进行
+    // - 检查hash是否有效，无效则无法进行
+    // - 交易厅完成两个hash上传后，两边归属交换
+    function exchangeCard(
+        uint _voyageId,
+        uint _shipId,
+        address _walletAddress,
+        bytes32 _cardHash,
+        string memory _plainText
+    ) public checkShip(_shipId, _voyageId){
+        Ship storage ship = ships[_shipId];
+        require(ship.isSettled == false, "Ship already settled");
+        require(checkCardValidity(_shipId, _walletAddress, _cardHash), "Invalid card hash");
+    }
+    // 结算当前船只进度
+    // - 检查是否符合结算条件
+    // - 结算人员胜败跟金额（必须手上没有剩牌，且剩下超过3颗星）
+    // - 如果时间到了，但有Table没有完结，视同手上还有牌，都出局
+    // - 分配金额（按照胜者的星星总数评分）
+    function settleShip(uint _voyageId, uint _shipId) public checkShip(_shipId, _voyageId){
+    }
     // TODO: 庄家抽成储存到指定合约地址的功能 OwnerOnly（后续设计败部复活赛用）
 
     //  检查牌是否合规
@@ -219,7 +240,7 @@ contract Espoir is Ownable {
         }
     }
 
-    //  取得玩家全局记录
+    //  获取指定玩家 全局输赢次数记录
     function getGlobalPlayer(
         address _walletAddress
     ) public view returns (GlobalPlayer memory) {

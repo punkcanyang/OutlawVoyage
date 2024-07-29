@@ -4,18 +4,24 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const {  ETH_SEPOILA_URL, PRIVATE_EKY = "", ETHERSCAN_PAIKEY } = process.env
+const {
+  Web3Q_GALILEO_TEST_URL, Web3Q_ACCOUNT_PRIVATE_KEYS = "", Web3Q_GALILEO_TEST_CHAIN_ID,
+  HARDHAT_LOCAL_URL, HARDHAT_LOCAL_ACCOUNT_PRIVATE_KEYS = ""
+} = process.env
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.24",
+  solidity: "0.8.20",
   networks: {
-    sepolia: {
-      url: ETH_SEPOILA_URL,
-      // accounts: [PRIVATE_EKY]
-    }
-  },
-  etherscan: {
-    apiKey: ETHERSCAN_PAIKEY
+    web3qtest: {
+      url: Web3Q_GALILEO_TEST_URL,
+      chainId: Number(Web3Q_GALILEO_TEST_CHAIN_ID),
+      accounts: Web3Q_ACCOUNT_PRIVATE_KEYS.split(",")
+    },
+    localhost: {
+      url: HARDHAT_LOCAL_URL,
+      accounts: HARDHAT_LOCAL_ACCOUNT_PRIVATE_KEYS.split(",")
+    },
+    
   },
   sourcify: {
     enabled: true
