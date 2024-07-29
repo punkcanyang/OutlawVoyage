@@ -1,4 +1,4 @@
-
+.gitignore
 node_modules
 .env
 
@@ -16,3 +16,9 @@ node_modules
 
 # Hardhat Ignition default folder for deployments against a local node
 ignition/deployments/chain-31337
+.DS_Store
+.obsidian/app.json
+.obsidian/appearance.json
+.obsidian/core-plugins-migration.json
+.obsidian/core-plugins.json
+.obsidian/workspace.json
