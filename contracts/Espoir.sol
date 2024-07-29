@@ -138,12 +138,17 @@ contract Espoir is Ownable {
         return _shipId == currentCycle + 1;
     }
 
+    // 检查船只修饰器
+    modifier checkShip(uint _voyageId, uint _shipId) {
+        require(isValidNextShipId(_shipId, _voyageId), "Invalid ship ID");
+        require(!gamePaused, "Game is paused");
+        _;
+    }
+
     // TODO: function registerPlayer 玩家注册，如果还没有船就Call createShip创建一艘船
     // TODO: function addCardToPlayer 前端产生12组牌跟hash，hash存入玩家的资料中，已经合并到registerPlayer
 
-    function registerPlayer(uint _voyageId, uint _shipId, address _walletAddress, string memory _tgId, bytes32[] memory _cardHashes) public payable {
-        require(isValidNextShipId(_shipId, _voyageId), "Invalid ship ID");
-        require(!gamePaused, "Game is paused");
+    function registerPlayer(uint _voyageId, uint _shipId, address _walletAddress, string memory _tgId, bytes32[] memory _cardHashes) public payable checkShip(_shipId, _voyageId) {
         require(msg.value == voyages[_voyageId].entryFee, "Incorrect entry fee");
 
         Ship storage ship = ships[_shipId];
@@ -181,23 +186,30 @@ contract Espoir is Ownable {
     //     - 扣除船只上的牌型计数
 
     // TODO: 明文检查，玩家贴入明文后，确认牌跟Hash一致，不一致则违规出局！丧失资格
-    // TODO:
-    // TODO:交换牌的归属
-    //     - 检查船只是否结算，已结算则无法进行
-    //     - 检查hash是否有效，无效则无法进行
-    //     - 交易厅完成两个hash上传后，两边归属交换
+
+
+    // 交换牌的归属
+    // - 检查船只是否结算，已结算则无法进行
+    // - 检查hash是否有效，无效则无法进行
+    // - 交易厅完成两个hash上传后，两边归属交换
     function exchangeCard(
+        uint _voyageId,
         uint _shipId,
         address _walletAddress,
         bytes32 _cardHash,
         string memory _plainText
-    ) public {
+    ) public checkShip(_shipId, _voyageId){
+        Ship storage ship = ships[_shipId];
+        require(ship.isSettled == false, "Ship already settled");
+        require(checkCardValidity(_shipId, _walletAddress, _cardHash), "Invalid card hash");
     }
-    // TODO:结算当前船只进度
-    //     - 检查是否符合结算条件
-    //     - 结算人员胜败跟金额（必须手上没有剩牌，且剩下超过3颗星）
-    //     - 如果时间到了，但有Table没有完结，视同手上还有牌，都出局
-    //     - 分配金额（按照胜者的星星总数评分）
+    // 结算当前船只进度
+    // - 检查是否符合结算条件
+    // - 结算人员胜败跟金额（必须手上没有剩牌，且剩下超过3颗星）
+    // - 如果时间到了，但有Table没有完结，视同手上还有牌，都出局
+    // - 分配金额（按照胜者的星星总数评分）
+    function settleShip(uint _voyageId, uint _shipId) public checkShip(_shipId, _voyageId){
+    }
     // TODO: 庄家抽成储存到指定合约地址的功能 OwnerOnly（后续设计败部复活赛用）
 
     //  检查牌是否合规
