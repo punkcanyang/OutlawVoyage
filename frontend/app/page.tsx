@@ -1,14 +1,14 @@
-import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Link from "next/link";
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 export default function Home() {
   return (
     <main className="container px-4 max-w-4xl flex min-h-screen flex-col py-12 gap-4">
-      <nav className="flex justify-end">
-        <Button variant="outline" size="sm">链接钱包</Button>
+      <nav className="flex justify-end mb-12">
+        <ConnectButton />
       </nav>
 
       <div>
