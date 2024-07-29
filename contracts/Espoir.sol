@@ -116,8 +116,8 @@ contract Espoir is Ownable {
     // 船班相关功能
     function createVoyage(uint _shipId, uint _voyageId) internal {
         Voyage storage newVoyage = voyages[_voyageId];
-        newShip.shipId = _shipId;
-        newShip.isSettled = false;
+        newVoyage.shipId = _shipId;
+        newVoyage.isSettled = false;
     }
 
     // 检查船班编号是否合法
@@ -190,33 +190,33 @@ contract Espoir is Ownable {
     // - 检查hash是否有效，无效则无法进行
     // - 交易厅完成两个hash上传后，两边归属交换
     function exchangeCard(
-        uint _voyageId,
         uint _shipId,
+        uint _voyageId,
         address _walletAddress,
         bytes32 _cardHash,
         string memory _plainText
-    ) public checkShip(_shipId, _voyageId){
-        Ship storage ship = ships[_shipId];
-        require(ship.isSettled == false, "Ship already settled");
-        require(checkCardValidity(_shipId, _walletAddress, _cardHash), "Invalid card hash");
+    ) public checkVoyage(_shipId, _voyageId){
+        Voyage storage voyage = voyages[_voyageId];
+        require(voyage.isSettled == false, "Voyage already settled");
+        require(checkCardValidity(_voyageId, _walletAddress, _cardHash), "Invalid card hash");
     }
     // 结算当前船只进度
     // - 检查是否符合结算条件
     // - 结算人员胜败跟金额（必须手上没有剩牌，且剩下超过3颗星）
     // - 如果时间到了，但有Table没有完结，视同手上还有牌，都出局
     // - 分配金额（按照胜者的星星总数评分）
-    function settleShip(uint _voyageId, uint _shipId) public checkShip(_shipId, _voyageId){
+    function settleShip(uint _shipId,uint _voyageId) public checkVoyage(_shipId, _voyageId){
     }
     // TODO: 庄家抽成储存到指定合约地址的功能 OwnerOnly（后续设计败部复活赛用）
 
     //  检查牌是否合规
     function checkCardValidity(
-        uint _shipId,
+        uint _voyageId,
         address _walletAddress,
         bytes32 _cardHash
     ) public view returns (bool) {
-        Ship storage ship = ships[_shipId];
-        Player storage player = ship.players[_walletAddress];
+        Voyage storage voyage = voyages[_voyageId];
+        Player storage player = voyage.players[_walletAddress];
         return player.cards[_cardHash];
     }
 
