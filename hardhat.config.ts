@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const {
-  Web3Q_GALILEO_TEST_URL, Web3Q_ACCOUNT_PRIVATE_KEYS = "", Web3Q_GALILEO_TEST_CHAIN,
+  Web3Q_GALILEO_TEST_URL, Web3Q_ACCOUNT_PRIVATE_KEYS = "", Web3Q_GALILEO_TEST_CHAIN_ID,
   HARDHAT_LOCAL_URL, HARDHAT_LOCAL_ACCOUNT_PRIVATE_KEYS = ""
 } = process.env
 
@@ -14,7 +14,7 @@ const config: HardhatUserConfig = {
   networks: {
     web3qtest: {
       url: Web3Q_GALILEO_TEST_URL,
-      chainId: Number(Web3Q_GALILEO_TEST_CHAIN),
+      chainId: Number(Web3Q_GALILEO_TEST_CHAIN_ID),
       accounts: Web3Q_ACCOUNT_PRIVATE_KEYS.split(",")
     },
     localhost: {

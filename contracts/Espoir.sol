@@ -21,14 +21,18 @@ contract Espoir is Ownable {
         uint gameBlocks; // 游戏时间（历经几个区块）
     }
     mapping(uint => Voyage) public voyages; // 船班映射
+
     // Table相关
     struct Table {
         bytes32 firstHash; // 第一组Hash
         string firstPlaintext; // 第一组明文
         bytes32 secondHash; // 第二组Hash
         string secondPlaintext; // 第二组明文
+        address firstOwner; // 第一组Hash归属钱包地址
+        address secondOwner; // 第二组Hash归属钱包地址
         bool isEnded; // 是否结束
     }
+    // 玩家信息
     struct Player {
         string tgId; // TG ID
         uint stars; // 星星数量
@@ -36,8 +40,9 @@ contract Espoir is Ownable {
         uint cardCount; //手上剩余牌数，如果完成一局Table，则扣1
         mapping(bytes32 => bool) cards; // 卡牌（用卡牌HASH作为Key），如果换牌了，玩家旧牌false，并增加新牌
         bool isRegistered; // 用来检查是否已报名
-
+        address walletAddress; // 玩家钱包地址
     }
+    // 交易信息
     struct Trade {
         bytes32 firstHash; // 第一组Hash，原本归属钱包地址
         address firstOwner; // 第一组Hash的原本归属钱包地址
@@ -45,7 +50,7 @@ contract Espoir is Ownable {
         address secondOwner; // 第二组Hash的原本归属钱包地址
         bool isCompleted; //交易是否完成，避免有人一牌多换，最后检查双方牌归属都是正确的，Hash都是正确，才执行交换
     }
-
+    // 船只信息
     struct Ship {
         uint voyageId; // 所属船班编号
         bool isSettled; // 状态：是否结算
@@ -226,7 +231,7 @@ contract Espoir is Ownable {
         }
     }
 
-    //  取得玩家全局记录
+    //  获取指定玩家 全局输赢次数记录
     function getGlobalPlayer(
         address _walletAddress
     ) public view returns (GlobalPlayer memory) {
