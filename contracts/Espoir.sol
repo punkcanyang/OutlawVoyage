@@ -116,8 +116,8 @@ contract Espoir is Ownable {
     // 船班相关功能
     function createVoyage(uint _shipId, uint _voyageId) internal {
         Voyage storage newVoyage = voyages[_voyageId];
-        newShip.shipId = _shipId;
-        newShip.isSettled = false;
+        newVoyage.shipId = _shipId;
+        newVoyage.isSettled = false;
     }
 
     // 检查船班编号是否合法
