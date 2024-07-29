@@ -11,8 +11,8 @@ contract Espoir is Ownable {
     // 系统相关
     uint public houseCut; // 庄家抽成比例
     bool public gamePaused; // 游戏是否暂停
-    // 船班相关
-    struct Voyage {
+    // 船相关
+    struct Ship {
         uint entryFee; // 入场金
         uint startStar; // 起始星星数
         uint winStar; //获胜星星数
@@ -20,7 +20,7 @@ contract Espoir is Ownable {
         uint waitBlocks; // 等候报名时间（等候几个区块）
         uint gameBlocks; // 游戏时间（历经几个区块）
     }
-    mapping(uint => Voyage) public voyages; // 船班映射
+    mapping(uint => Ship) public ships; // 船班映射
     // Table相关
     struct Table {
         bytes32 firstHash; // 第一组Hash
@@ -40,14 +40,14 @@ contract Espoir is Ownable {
     }
     struct Trade {
         bytes32 firstHash; // 第一组Hash，原本归属钱包地址
-        address firstOwner; // 第一组Hash的原本归属钱包地址
+        address firstOwner; // 第一组Hash的 原本归属钱包地址
         bytes32 secondHash; // 第二组Hash，原本归属钱包地址
         address secondOwner; // 第二组Hash的原本归属钱包地址
         bool isCompleted; //交易是否完成，避免有人一牌多换，最后检查双方牌归属都是正确的，Hash都是正确，才执行交换
     }
-
-    struct Ship {
-        uint voyageId; // 所属船班编号
+// 船班，一班就是一场游戏
+    struct Voyage {
+        uint shipId; // 船编号
         bool isSettled; // 状态：是否结算
         mapping(string => uint256) cardCounts; // 卡牌数量（三种牌分开计数）使用映射以节省Gas
         uint playerCount; // 全部玩家数量（不论死活）
@@ -58,7 +58,7 @@ contract Espoir is Ownable {
         mapping(uint => Trade) trades; // 交易厅映射
     }
 
-    mapping(uint => Ship) public ships; // 船只映射
+    mapping(uint => Voyage) public voyages; // 船只映射
 
     // 全局玩家清单
     struct GlobalPlayer {
@@ -82,9 +82,9 @@ contract Espoir is Ownable {
     // - 设计和开发船班的相关逻辑，包括编号、入场金、起始区块、等候报名时间和游戏时间等。
     // - 负责创建船只的逻辑，包括船只的编号、状态、卡牌数量、玩家数量等。
 
-    // 船班相关功能
+    // 船相关功能
     //
-    function createVoyage(
+    function createShip(
         uint _id,
         uint _entryFee,
         uint _startStar,
@@ -93,7 +93,7 @@ contract Espoir is Ownable {
         uint _waitBlocks,
         uint _gameBlocks
     ) public onlyOwner {
-        voyages[_id] = Voyage({
+        ships[_id] = Ship({
             entryFee: _entryFee,
             startStar: _startStar,
             winStar: _winStar,
@@ -103,71 +103,71 @@ contract Espoir is Ownable {
         });
     }
 
-    function getVoyage(uint _id) public view returns (Voyage memory) {
-        return voyages[_id];
+    function getShip(uint _id) public view returns (Ship memory) {
+        return ships[_id];
     }
 
-    // 船只相关功能
-    function createShip(uint _shipId, uint _voyageId) internal {
-        Ship storage newShip = ships[_shipId];
-        newShip.voyageId = _voyageId;
+    // 船班相关功能
+    function createVoyage(uint _shipId, uint _voyageId) internal {
+        Voyage storage newVoyage = voyages[_voyageId];
+        newShip.shipId = _shipId;
         newShip.isSettled = false;
     }
 
-    // 检查船只编号是否合法
+    // 检查船班编号是否合法
     // 目前检查船只只能是下一场的，不能是过去的，也不能是下下场的
-    function isValidNextShipId(
+    function isValidNextVoyageId(
         uint _shipId,
         uint _voyageId
     ) public view returns (bool) {
-        Voyage memory voyage = voyages[_voyageId];
-        if (voyage.startBlock == 0) return false; // 船班不存在
+        Voyage memory ship = ships[_shipId];
+        if (ship.startBlock == 0) return false; // 船不存在
 
-        uint cycleLength = voyage.waitBlocks + voyage.gameBlocks;
+        uint cycleLength = ship.waitBlocks + ship.gameBlocks;
         uint currentBlock = block.number;
 
         // 计算当前周期编号
-        uint currentCycle = (currentBlock - voyage.startBlock) / cycleLength;
+        uint currentCycle = (currentBlock - ship.startBlock) / cycleLength;
 
-        // 下一场船只编号应该是当前周期编号加一
-        return _shipId == currentCycle + 1;
+        // 下一场船班编号应该是当前周期编号加一
+        return _voyageId == currentCycle + 1;
     }
 
-    // TODO: function registerPlayer 玩家注册，如果还没有船就Call createShip创建一艘船
-    // TODO: function addCardToPlayer 前端产生12组牌跟hash，hash存入玩家的资料中，已经合并到registerPlayer
+    // 玩家注册，如果还没有船班就创建一艘船
+    // function addCardToPlayer 前端产生12组牌跟hash，hash存入玩家的资料中，已经合并到registerPlayer
 
-    function registerPlayer(uint _voyageId, uint _shipId, address _walletAddress, string memory _tgId, bytes32[] memory _cardHashes) public payable {
+    function registerPlayer(uint _shipId , uint _voyageId, address _walletAddress, string memory _tgId, bytes32[] memory _cardHashes) public payable {
         require(isValidNextShipId(_shipId, _voyageId), "Invalid ship ID");
         require(!gamePaused, "Game is paused");
-        require(msg.value == voyages[_voyageId].entryFee, "Incorrect entry fee");
+        require(msg.value == ships[_shipId].entryFee, "Incorrect entry fee");
 
-        Ship storage ship = ships[_shipId];
-        if (ship.voyageId == 0) {
-            // 默认情况下，如果ship尚未初始化，voyageId和isSettled应该是0和false
-            createShip(_shipId, _voyageId);
+        Voyage storage voyage = voyages[_voyageId];
+        if (voyage.shipId == 0) {
+            // 默认情况下，如果voyage尚未初始化，shipId和isSettled应该是0和false
+            createVoyage(_shipId, _voyageId);
         }
-        Player storage player = ship.players[_walletAddress];
+        Player storage player = voyage.players[_walletAddress];
         require(!player.isRegistered, "Player already registered");
 
-        Voyage memory voyage = voyages[_voyageId];
+        Ship memory ship = ships[_shipId];
         // 检查卡片数量是否12张
         require(_cardHashes.length == 12, "Must provide exactly 12 card hashes");        
         for (uint i = 0; i < _cardHashes.length; i++) {
             player.cards[_cardHashes[i]] = true;
         }
         player.tgId = _tgId;
-        player.stars = voyage.startStar;
+        player.stars = ship.startStar;
         player.status = "G"; // 预设状态
         player.isRegistered = true; // 标记玩家已报名
         ship.playerCount++;
     }
 
     // TODO:创建Table
-    //     - 检查船只是否结算，已结算则无法进行
+    //     - 检查船班是否结算，已结算则无法进行
     //     - 当前有效的Table如果大于存活人数的一半，则无法再新增Table
     //     - 创建Table的玩家需要提交手上有效的卡牌Hash，无效hash则无法送出
     // TODO:加入Table
-    //     - 检查船只是否结算，已结算则无法进行
+    //     - 检查船班是否结算，已结算则无法进行
     //     - 针对生效中的Table，提交有效的卡牌hash，提交前需要检查hash是否有效
     // TODO: Table Open，提交明文
     //     - 两人中第一个提交明文，检查明文是否符合Hash
