@@ -58,7 +58,7 @@ contract Espoir is Ownable {
         mapping(uint => Trade) trades; // 交易厅映射
     }
 
-    mapping(uint => Ship) public ships; // 船只映射
+    mapping(uint => Ship) public ships; // 船只映射 key 为航班Id
 
     // 全局玩家清单
     struct GlobalPlayer {
@@ -181,6 +181,13 @@ contract Espoir is Ownable {
     //     - 检查船只是否结算，已结算则无法进行
     //     - 检查hash是否有效，无效则无法进行
     //     - 交易厅完成两个hash上传后，两边归属交换
+    function exchangeCard(
+        uint _shipId,
+        address _walletAddress,
+        bytes32 _cardHash,
+        string memory _plainText
+    ) public {
+    }
     // TODO:结算当前船只进度
     //     - 检查是否符合结算条件
     //     - 结算人员胜败跟金额（必须手上没有剩牌，且剩下超过3颗星）
