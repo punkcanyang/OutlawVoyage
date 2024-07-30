@@ -173,17 +173,104 @@ contract Espoir is Ownable {
     //     - 检查船班是否结算，已结算则无法进行
     //     - 当前有效的Table如果大于存活人数的一半，则无法再新增Table
     //     - 创建Table的玩家需要提交手上有效的卡牌Hash，无效hash则无法送出
+    function createTable(
+        uint _voyageId,
+        address _firstOwner,
+        bytes32 _firstHash
+    ) public returns (uint tableId) {
+        Voyage storage voyage = voyages[_voyageId];
+        Player storage fistOwner = voyage.players[_firstOwner];
+        require(voyage.isSettled == false, "Voyage already settled");
+        require(voyage.tablesCount < voyage.playerCount / 2, "Too many tables");
+        require(voyage.players[_firstOwner].cardCount > 0, "Player has no cards");
+        voyage.tablesCount++;
+        //提交有效的卡牌hash，提交前需要检查hash是否有效
+        require(checkCardValidity(_voyageId, _firstOwner, _firstHash), "Invalid card hash");
+        voyage.tables[voyage.tablesCount] = Table({
+            firstHash: _firstHash,
+            firstPlaintext: "",
+            secondHash: "",
+            secondPlaintext: "",
+            firstOwner: _firstOwner,
+            secondOwner: address(0),
+            isEnded: false
+        });
+        return voyage.tablesCount;
+    }
     // TODO:加入Table
     //     - 检查船班是否结算，已结算则无法进行
     //     - 针对生效中的Table，提交有效的卡牌hash，提交前需要检查hash是否有效
+    function joinTable(
+        uint _voyageId,
+        uint _tableId,
+        address _secondOwner,
+        bytes32 _secondHash
+    ) public {
+        Voyage storage voyage = voyages[_voyageId];
+        require(voyage.isSettled == false, "Voyage already settled");
+        Table storage table = voyage.tables[_tableId];
+        require(table.isEnded == false, "Table already ended");
+        require(voyage.players[_secondOwner].cardCount > 0, "Player has no cards");
+        require(checkCardValidity(_voyageId, _secondOwner, _secondHash), "Invalid card hash");
+        table.secondHash = _secondHash;
+        table.secondOwner = _secondOwner;
+        //opentable
+
+    }
+
     // TODO: Table Open，提交明文
     //     - 两人中第一个提交明文，检查明文是否符合Hash
     //     - 第二个提交明文，检查明文是否符合Hash，并结算Table
     //     - 结算Table后，胜者加一颗星星
     //     - 扣除船只上的牌型计数
+    function commitPlain(
+        uint _voyageId,
+        uint _tableId,
+        address _commiter,
+        string memory _plainText
+    ) public {
+        Voyage storage voyage = voyages[_voyageId];
+        require(voyage.isSettled == false, "Voyage already settled");
+        Table storage table = voyage.tables[_tableId];
+        require(table.isEnded == false, "Table already ended");
+        if (table.firstOwner == _commiter) {
+            require(checkPlainText(table.firstHash, _plainText), "Invalid plain text");
+            table.firstPlaintext = _plainText;
+        } else if (table.secondOwner == _commiter) {
+            require(checkPlainText(table.secondHash, _plainText), "Invalid plain text");
+            table.secondPlaintext = _plainText;
+        }
+        if (table.firstPlaintext != "" && table.secondPlaintext != "") {
+            // 结算Table
+            //置空玩家使用了的卡牌
+            voyage.players[table.firstOwner].cards[table.firstHash] = false;
+            voyage.players[table.secondOwner].cards[table.secondHash] = false;
+            if (table.firstPlaintext == table.secondPlaintext) {
+                // 平局
+                voyage.players[table.firstOwner].cardCount--;
+                voyage.players[table.secondOwner].cardCount--;
+            } else {
+                // 胜者加一颗星星
+                if (table.firstPlaintext == "1") {
+                    voyage.players[table.firstOwner].stars++;
+                } else {
+                    voyage.players[table.secondOwner].stars++;
+                }
+            }
+            // 扣除船只上的牌型计数
+            voyage.cardCounts[table.firstHash]--;
+            voyage.cardCounts[table.secondHash]--;
+            table.isEnded = true;
+        }
+    }
 
     // TODO: 明文检查，玩家贴入明文后，确认牌跟Hash一致，不一致则违规出局！丧失资格
-
+    function checkPlainText(
+        bytes32 _cardHash,
+        string memory _plainText
+    ) public returns (bool) {
+        return keccak256(abi.encodePacked(_plainText)) == _cardHash;
+    }
 
     // 交换牌的归属
     // - 检查船只是否结算，已结算则无法进行
