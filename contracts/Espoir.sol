@@ -65,6 +65,7 @@ contract Espoir is Ownable {
         uint playerCount; // 全部玩家数量（不论死活）
         uint playerOut; //出局玩家数量
         uint tablesCount; //当前活跃桌数，如果Table被创建+1,如果Table对决结束-1，用来检查能不能开新桌
+        address[] playerArr; // 玩家数组
         mapping(uint => Table) tables; // Table映射
         mapping(address => Player) players; // 玩家映射
         mapping(string => Trade) trades; // 交易厅映射
@@ -125,6 +126,7 @@ contract Espoir is Ownable {
         Voyage storage newVoyage = voyages[_voyageId];
         newVoyage.shipId = _shipId;
         newVoyage.isSettled = false;
+        newVoyage.playerArr = new address[](0);
     }
 
     // 检查船班编号是否合法
@@ -174,8 +176,8 @@ contract Espoir is Ownable {
         player.status = "G"; // 预设状态
         player.isRegistered = true; // 标记玩家已报名
         voyage.playerCount++;
+        // voyage.playerArr.push(address);
         // 更新卡牌数量
-
         voyage.cardCounts["R"] += 4;
         voyage.cardCounts["P"] += 4;
         voyage.cardCounts["S"] += 4;
@@ -339,10 +341,41 @@ contract Espoir is Ownable {
    }
     // 结算当前船只进度
     // - 检查是否符合结算条件
-    // - 结算人员胜败跟金额（必须手上没有剩牌，且剩下超过3颗星）
-    // - 如果时间到了，但有Table没有完结，视同手上还有牌，都出局
+    // - 手里必须没有牌+星星必须大于等于 3 颗 才算赢，其他情况的都算输
     // - 分配金额（按照胜者的星星总数评分）
-    function settleShip(uint _shipId,uint _voyageId) public {
+    function settleShip(uint _shipId,uint _voyageId) public payable {
+        // 判断航班是否正常
+        Voyage storage voyage = voyages[_voyageId];
+        require(voyage.shipId > 0, "Voyage not existed");
+        require(voyage.isSettled == false, "Voyage already settled");
+        // 获取船
+        Ship storage ship = ships[_shipId];
+        // 判断当前的区块是否大于等待区块+游戏时间区块
+        require(block.number > ship.startBlock + ship.waitBlocks + ship.gameBlocks, "game not ended");
+        // 判断输赢，遍历玩家
+        uint winStarCount = 0; // 全部胜星数量
+        uint totalEntryFee = ship.entryFee * voyage.playerArr.length * houseCut / 100; // 全部入场金
+        // 庄家获取 分成比例
+        address[] storage winPlayerAddressArr;
+        // 判断输赢，并记录相关的数据
+        for (uint256 i = 0; i < voyage.playerArr.length; i++) {
+            address playerAddress = voyage.playerArr[i];
+            Player storage player = voyage.players[playerAddress];
+            // 判断输赢
+            if (player.stars >= ship.winStar && player.cardCount == 0) {
+                globalPlayers[playerAddress].wins += 1;
+                winStarCount += player.stars;
+                winPlayerAddressArr.push(playerAddress);
+            } else {
+                globalPlayers[playerAddress].losses += 1;
+            }
+        }
+        // 遍历转账
+        for (uint256 i = 0; i < winPlayerAddressArr.length; i++) {
+            address playerAddress = winPlayerAddressArr[i];
+            uint winAmount = totalEntryFee * voyage.players[playerAddress].stars / winStarCount;
+            payable(playerAddress).transfer(winAmount);
+        }
     }
     // TODO: 庄家抽成储存到指定合约地址的功能 OwnerOnly（后续设计败部复活赛用）
 
