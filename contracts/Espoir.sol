@@ -174,6 +174,11 @@ contract Espoir is Ownable {
         player.status = "G"; // 预设状态
         player.isRegistered = true; // 标记玩家已报名
         voyage.playerCount++;
+        // 更新卡牌数量
+
+        voyage.cardCounts["R"] += 4;
+        voyage.cardCounts["P"] += 4;
+        voyage.cardCounts["S"] += 4;
     }
 
     // TODO:创建Table
