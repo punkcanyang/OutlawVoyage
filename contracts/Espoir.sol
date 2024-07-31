@@ -20,7 +20,7 @@ contract Espoir is Ownable {
         uint waitBlocks; // 等候报名时间（等候几个区块）
         uint gameBlocks; // 游戏时间（历经几个区块）
     }
-    mapping(uint => Ship) public ships; // 船班映射
+    mapping(uint => Ship) public ships; // 船映射
     // Table相关
     struct Table {
         bytes32 firstHash; // 第一组Hash
@@ -41,6 +41,13 @@ contract Espoir is Ownable {
         bool isRegistered; // 用来检查是否已报名
         address walletAddress; // 玩家钱包地址
     }
+    // 交易状态
+    enum TradeStatus {
+        FirstOwnCheckPass, // 第一方检查通过
+        SenondOwnCheckPass, // 第二方检查通过
+        ToBeConfirmed, // 双方检查通过，带确定交换
+        Completed // 交换完成
+    }
     // 交易信息
     struct Trade {
         bytes32 firstHash; // 第一组Hash，原本归属钱包地址
@@ -48,22 +55,23 @@ contract Espoir is Ownable {
         bytes32 secondHash; // 第二组Hash，原本归属钱包地址
         address secondOwner; // 第二组Hash的原本归属钱包地址
         bool isCompleted; //交易是否完成，避免有人一牌多换，最后检查双方牌归属都是正确的，Hash都是正确，才执行交换
+        TradeStatus status;
     }
-// 船班，一班就是一场游戏
+    // 船班，一班就是一场游戏   
     struct Voyage {
         uint shipId; // 船编号
-
         bool isSettled; // 状态：是否结算
-        mapping(string => uint256) cardCounts; // 卡牌数量（三种牌分开计数）使用映射以节省Gas
+        mapping(string => uint256) cardCounts; // R: 石头，P: 布，S:剪刀 卡牌数量（三种牌分开计数）使用映射以节省Gas
         uint playerCount; // 全部玩家数量（不论死活）
         uint playerOut; //出局玩家数量
         uint tablesCount; //当前活跃桌数，如果Table被创建+1,如果Table对决结束-1，用来检查能不能开新桌
+        address[] playerArr; // 玩家数组
         mapping(uint => Table) tables; // Table映射
         mapping(address => Player) players; // 玩家映射
-        mapping(uint => Trade) trades; // 交易厅映射
+        mapping(string => Trade) trades; // 交易厅映射
     }
 
-    mapping(uint => Voyage) public voyages; // 船只映射
+    mapping(uint => Voyage) public voyages; // 船班映射
 
 
     // 全局玩家清单
@@ -118,6 +126,7 @@ contract Espoir is Ownable {
         Voyage storage newVoyage = voyages[_voyageId];
         newVoyage.shipId = _shipId;
         newVoyage.isSettled = false;
+        newVoyage.playerArr = new address[](0);
     }
 
     // 检查船班编号是否合法
@@ -126,7 +135,7 @@ contract Espoir is Ownable {
         uint _shipId,
         uint _voyageId
     ) public view returns (bool) {
-        Voyage memory ship = ships[_shipId];
+        Ship memory ship = ships[_shipId];
         if (ship.startBlock == 0) return false; // 船不存在
 
         uint cycleLength = ship.waitBlocks + ship.gameBlocks;
@@ -144,7 +153,7 @@ contract Espoir is Ownable {
     // function addCardToPlayer 前端产生12组牌跟hash，hash存入玩家的资料中，已经合并到registerPlayer
 
     function registerPlayer(uint _shipId , uint _voyageId, address _walletAddress, string memory _tgId, bytes32[] memory _cardHashes) public payable {
-        require(isValidNextShipId(_shipId, _voyageId), "Invalid ship ID");
+        require(isValidNextVoyageId(_shipId, _voyageId), "Invalid voyage ID");
         require(!gamePaused, "Game is paused");
         require(msg.value == ships[_shipId].entryFee, "Incorrect entry fee");
 
@@ -166,9 +175,9 @@ contract Espoir is Ownable {
         player.stars = ship.startStar;
         player.status = "G"; // 预设状态
         player.isRegistered = true; // 标记玩家已报名
-        ship.playerCount++;
+        voyage.playerCount++;
+        // voyage.playerArr.push(address);
         // 更新卡牌数量
-
         voyage.cardCounts["R"] += 4;
         voyage.cardCounts["P"] += 4;
         voyage.cardCounts["S"] += 4;
@@ -276,28 +285,97 @@ contract Espoir is Ownable {
     ) public returns (bool) {
         return keccak256(abi.encodePacked(_plainText)) == _cardHash;
     }
-
-    // 交换牌的归属
-    // - 检查船只是否结算，已结算则无法进行
-    // - 检查hash是否有效，无效则无法进行
-    // - 交易厅完成两个hash上传后，两边归属交换
-    function exchangeCard(
-        uint _shipId,
-        uint _voyageId,
-        address _walletAddress,
-        bytes32 _cardHash,
-        string memory _plainText
-    ) public checkVoyage(_shipId, _voyageId){
+     // 创建交易 
+     // 第二个人 贴 hash 交易也是这个逻辑
+     // 返回的第一个值为 交易 id ，第二个值为 交易状态
+    function createTread(uint _shipId , uint _voyageId, string memory _tradeId, address _walletAddress, bytes32 _hash) public returns (string memory, TradeStatus) {
+        // 判断航班是否正常
         Voyage storage voyage = voyages[_voyageId];
+        require(voyage.shipId > 0, "Voyage not existed");
         require(voyage.isSettled == false, "Voyage already settled");
-        require(checkCardValidity(_voyageId, _walletAddress, _cardHash), "Invalid card hash");
+        // 判断 玩家地址是否存在
+        Player storage fistOwner = voyage.players[_walletAddress];
+        require(voyage.players[_walletAddress].walletAddress != address(0), "address not existed");
+        // 校验卡片
+        require(checkCardValidity(_voyageId, _walletAddress,_hash) == true, "card not belong you");
+        Trade memory tradeInfo = voyage.trades[_tradeId];
+        // 如果交易存在，就代表是第二个人来贴 hash 进行交易
+        // 如果交易不存在，就代表是第一个人来贴 hash 进行交易
+        if (tradeInfo.firstHash != "") {
+            tradeInfo.secondHash = _hash;
+            tradeInfo.secondOwner = _walletAddress;
+            tradeInfo.status = TradeStatus.SenondOwnCheckPass;
+        } else {
+            // 创建交易对象
+           tradeInfo = Trade({
+                firstHash: _hash,
+                secondHash: "",
+                firstOwner: _walletAddress,
+                secondOwner: address(0),
+                isCompleted: false,
+                status: TradeStatus.FirstOwnCheckPass
+            });
+            voyage.trades[_tradeId] = tradeInfo;
+        }
+        return (_tradeId, tradeInfo.status);
     }
+
+   // 确认交易，交换归属
+   function confoirmTrade(int _shipId , uint _voyageId, string memory _tradeId, address _walletAddress) public {
+        Voyage storage voyage = voyages[_voyageId];
+        require(voyage.shipId > 0, "Voyage not existed");
+        require(voyage.isSettled == false, "Voyage already settled");
+        Trade memory tradeInfo = voyage.trades[_tradeId];
+        require(tradeInfo.status == TradeStatus.ToBeConfirmed, "Trade info error");
+        // 判断地址是否交易中的一个
+        require(tradeInfo.firstOwner == _walletAddress || tradeInfo.secondOwner == _walletAddress, "address is error");
+        // 判断 2 张 hash 是否已经交换过
+        Player storage fistOwner = voyage.players[tradeInfo.firstOwner];
+        Player storage secondOwner = voyage.players[tradeInfo.secondOwner];
+        require(fistOwner.cards[tradeInfo.firstHash] == true && secondOwner.cards[tradeInfo.secondHash] == true, "card hava been exchanged");
+        // 修改归属
+        fistOwner.cards[tradeInfo.firstHash] = false;
+        fistOwner.cards[tradeInfo.secondHash] = true;
+        secondOwner.cards[tradeInfo.secondHash] = false;
+        secondOwner.cards[tradeInfo.firstHash] = true; 
+   }
     // 结算当前船只进度
     // - 检查是否符合结算条件
-    // - 结算人员胜败跟金额（必须手上没有剩牌，且剩下超过3颗星）
-    // - 如果时间到了，但有Table没有完结，视同手上还有牌，都出局
+    // - 手里必须没有牌+星星必须大于等于 3 颗 才算赢，其他情况的都算输
     // - 分配金额（按照胜者的星星总数评分）
-    function settleShip(uint _shipId,uint _voyageId) public checkVoyage(_shipId, _voyageId){
+    function settleShip(uint _shipId,uint _voyageId) public payable {
+        // 判断航班是否正常
+        Voyage storage voyage = voyages[_voyageId];
+        require(voyage.shipId > 0, "Voyage not existed");
+        require(voyage.isSettled == false, "Voyage already settled");
+        // 获取船
+        Ship storage ship = ships[_shipId];
+        // 判断当前的区块是否大于等待区块+游戏时间区块
+        require(block.number > ship.startBlock + ship.waitBlocks + ship.gameBlocks, "game not ended");
+        // 判断输赢，遍历玩家
+        uint winStarCount = 0; // 全部胜星数量
+        uint totalEntryFee = ship.entryFee * voyage.playerArr.length * houseCut / 100; // 全部入场金
+        // 庄家获取 分成比例
+        address[] storage winPlayerAddressArr;
+        // 判断输赢，并记录相关的数据
+        for (uint256 i = 0; i < voyage.playerArr.length; i++) {
+            address playerAddress = voyage.playerArr[i];
+            Player storage player = voyage.players[playerAddress];
+            // 判断输赢
+            if (player.stars >= ship.winStar && player.cardCount == 0) {
+                globalPlayers[playerAddress].wins += 1;
+                winStarCount += player.stars;
+                winPlayerAddressArr.push(playerAddress);
+            } else {
+                globalPlayers[playerAddress].losses += 1;
+            }
+        }
+        // 遍历转账
+        for (uint256 i = 0; i < winPlayerAddressArr.length; i++) {
+            address playerAddress = winPlayerAddressArr[i];
+            uint winAmount = totalEntryFee * voyage.players[playerAddress].stars / winStarCount;
+            payable(playerAddress).transfer(winAmount);
+        }
     }
     // TODO: 庄家抽成储存到指定合约地址的功能 OwnerOnly（后续设计败部复活赛用）
 
