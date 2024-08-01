@@ -254,26 +254,35 @@ contract Espoir is Ownable {
             require(checkPlainText(table.secondHash, _plainText), "Invalid plain text");
             table.secondPlaintext = _plainText;
         }
-        if (table.firstPlaintext != "" && table.secondPlaintext != "") {
+        if (bytes(table.firstPlaintext).length != 0 && bytes(table.secondPlaintext).length != 0) {
             // 结算Table
             //置空玩家使用了的卡牌
             voyage.players[table.firstOwner].cards[table.firstHash] = false;
             voyage.players[table.secondOwner].cards[table.secondHash] = false;
-            if (table.firstPlaintext == table.secondPlaintext) {
+            if (keccak256(abi.encodePacked(table.firstPlaintext)) == keccak256(abi.encodePacked(table.secondPlaintext))) {
                 // 平局
                 voyage.players[table.firstOwner].cardCount--;
                 voyage.players[table.secondOwner].cardCount--;
             } else {
-                // 胜者加一颗星星
-                if (table.firstPlaintext == "1") {
+                // 胜者加一颗星星,比较石头剪刀布,扣除对应牌的计数
+                if (keccak256(abi.encodePacked(table.firstPlaintext)) == keccak256(abi.encodePacked("R")) && keccak256(abi.encodePacked(table.secondPlaintext)) == keccak256(abi.encodePacked("S"))) {
                     voyage.players[table.firstOwner].stars++;
+                    voyage.cardCounts["S"]--;
+                } else if (keccak256(abi.encodePacked(table.firstPlaintext)) == keccak256(abi.encodePacked("S")) && keccak256(abi.encodePacked(table.secondPlaintext)) == keccak256(abi.encodePacked("P"))) {
+                    voyage.players[table.firstOwner].stars++;
+                    voyage.cardCounts["P"]--;
+                } else if (keccak256(abi.encodePacked(table.firstPlaintext)) == keccak256(abi.encodePacked("P")) && keccak256(abi.encodePacked(table.secondPlaintext)) == keccak256(abi.encodePacked("R"))) {
+                    voyage.players[table.firstOwner].stars++;
+                    voyage.cardCounts["R"]--;
                 } else {
                     voyage.players[table.secondOwner].stars++;
+                    voyage.cardCounts["S"]--;
                 }
+
+                voyage.players[table.firstOwner].cardCount--;
+                voyage.players[table.secondOwner].cardCount--;
             }
-            // 扣除船只上的牌型计数
-            voyage.cardCounts[table.firstHash]--;
-            voyage.cardCounts[table.secondHash]--;
+
             table.isEnded = true;
         }
     }
