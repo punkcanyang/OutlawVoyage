@@ -2,17 +2,40 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
-contract Espoir is Ownable {
+contract Espoir is Ownable, ReentrancyGuard {
+    using SafeMath for uint256;
 
-    constructor(uint _houseCut) Ownable(msg.sender){
-        houseCut = _houseCut;
-    }
-
+    // 常量
+    uint8 private constant CARDS_PER_PLAYER = 12;
+    uint8 private constant WIN_STAR_THRESHOLD = 3;
+    string private constant GAME_STATUS_PLAYING = "G";
+    string private constant GAME_STATUS_ZERO_STAR = "Z";
+    string private constant GAME_STATUS_OUT = "O";
+    string private constant GAME_STATUS_WIN = "W";
     
     // 系统相关
     uint public houseCut; // 庄家抽成比例
     bool public gamePaused; // 游戏是否暂停
+
+    // 事件通知
+    event HouseCutUpdated(uint256 newHouseCut);
+    event GamePauseStatusChanged(bool isPaused);
+    event VoyageCreated(uint indexed shipId, uint indexed voyageId);
+    event PlayerRegistered(uint indexed voyageId, address indexed player);
+    event TableCreated(uint indexed voyageId, uint indexed tableId);
+    event TradeCreated(uint indexed voyageId, string indexed tradeId, TradeStatus status);
+    event VoyageSettled(uint indexed shipId, uint indexed voyageId);
+
+    // 构造函数部署合约时的初始化
+    constructor(uint256 _houseCut, bool _gamePaused) Ownable(msg.sender) {
+        require(_houseCut <= 100, "House cut must be <= 100");
+        houseCut = _houseCut;
+        gamePaused = _gamePaused;
+    }
+    
     // 船相关
     struct Ship {
         uint entryFee; // 入场金
@@ -23,6 +46,7 @@ contract Espoir is Ownable {
         uint gameBlocks; // 游戏时间（历经几个区块）
     }
     mapping(uint => Ship) public ships; // 船映射
+
     // Table相关
     struct Table {
         bytes32 firstHash; // 第一组Hash
@@ -33,6 +57,7 @@ contract Espoir is Ownable {
         address secondOwner; // 第二组Hash归属钱包地址
         bool isEnded; // 是否结束
     }
+
     // 玩家信息
     struct Player {
         string tgId; // TG ID
@@ -43,6 +68,7 @@ contract Espoir is Ownable {
         bool isRegistered; // 用来检查是否已报名
         address walletAddress; // 玩家钱包地址
     }
+
     // 交易状态
     enum TradeStatus {
         FirstOwnCheckPass, // 第一方检查通过
@@ -50,6 +76,7 @@ contract Espoir is Ownable {
         ToBeConfirmed, // 双方检查通过，带确定交换
         Completed // 交换完成
     }
+
     // 交易信息
     struct Trade {
         bytes32 firstHash; // 第一组Hash，原本归属钱包地址
@@ -89,21 +116,52 @@ contract Espoir is Ownable {
 
     // 系统相关功能
     // 设定抽成比例，例如30，就是先扣除30%
-    function setHouseCut(uint _houseCut) public onlyOwner {
-        houseCut = _houseCut;
+    function setHouseCut(uint256 _newHouseCut) external onlyOwner {
+        houseCut = _newHouseCut;
+        emit HouseCutUpdated(_newHouseCut);
     }
 
-    //暂停游戏的设计，主要是怕万一这个有bug，用户又继续玩出问题
-    function pauseGame(bool _pause) public onlyOwner {
-        gamePaused = _pause;
+    // 获取抽成比例
+    function getHouseCut() public view returns (uint) {
+        return houseCut;
+    }
+
+    // 设置游戏暂停
+    function setGamePaused(bool _paused) external onlyOwner {
+        gamePaused = _paused;
+        emit GamePauseStatusChanged(_paused);
+    }
+
+    // 获取游戏暂停状态
+    function getGamePaused() public view returns (bool) {
+        return gamePaused;
     }
 
     // - 设计和开发船班的相关逻辑，包括编号、入场金、起始区块、等候报名时间和游戏时间等。
     // - 负责创建船只的逻辑，包括船只的编号、状态、卡牌数量、玩家数量等。
 
+    // ******* 船只相关功能 
+    // 创建船只
+    function createShip(
+        uint _id,
+        uint _entryFee,
+        uint _startStar,
+        uint _winStar,
+        uint _startBlock,
+        uint _waitBlocks,
+        uint _gameBlocks
+    ) public onlyOwner {
+        ships[_id] = Ship({
+            entryFee: _entryFee,
+            startStar: _startStar,
+            winStar: _winStar,
+            startBlock: _startBlock,
+            waitBlocks: _waitBlocks,
+            gameBlocks: _gameBlocks
+        });
+    }
 
-
-// 获取Ship的信息
+    // 获取Ship的信息
     function getShip(uint _shipId) public view returns (
         uint entryFee, uint startStar, uint winStar,
         uint startBlock, uint waitBlocks, uint gameBlocks
@@ -209,36 +267,11 @@ contract Espoir is Ownable {
         return voyages[_voyageId].cardCounts[cardType];
     }
 
-
-
     //  获取指定玩家 全局输赢次数记录
     function getGlobalPlayer(address _walletAddress) public view returns (uint wins, uint losses) {
         GlobalPlayer storage globalPlayer = globalPlayers[_walletAddress];
         return (globalPlayer.wins, globalPlayer.losses);
     }
-
-
-    // 船相关功能
-    //
-    function createShip(
-        uint _id,
-        uint _entryFee,
-        uint _startStar,
-        uint _winStar,
-        uint _startBlock,
-        uint _waitBlocks,
-        uint _gameBlocks
-    ) public onlyOwner {
-        ships[_id] = Ship({
-            entryFee: _entryFee,
-            startStar: _startStar,
-            winStar: _winStar,
-            startBlock: _startBlock,
-            waitBlocks: _waitBlocks,
-            gameBlocks: _gameBlocks
-        });
-    }
-
 
     // 船班相关功能
     function createVoyage(uint _shipId, uint _voyageId) internal {
@@ -246,6 +279,8 @@ contract Espoir is Ownable {
         newVoyage.shipId = _shipId;
         newVoyage.isSettled = false;
         newVoyage.playerArr = new address[](0);
+
+        emit VoyageCreated(_shipId, _voyageId);
     }
 
     // 检查船班编号是否合法
@@ -271,10 +306,11 @@ contract Espoir is Ownable {
     // 玩家注册，如果还没有船班就创建一艘船
     // function addCardToPlayer 前端产生12组牌跟hash，hash存入玩家的资料中，已经合并到registerPlayer
 
-    function registerPlayer(uint _shipId , uint _voyageId, address _walletAddress, string memory _tgId, bytes32[] memory _cardHashes) public payable {
+    function registerPlayer(uint _shipId , uint _voyageId, address _walletAddress, string memory _tgId, bytes32[] memory _cardHashes) public payable nonReentrant {
         require(isValidNextVoyageId(_shipId, _voyageId), "Invalid voyage ID");
         require(!gamePaused, "Game is paused");
         require(msg.value == ships[_shipId].entryFee, "Incorrect entry fee");
+        require(_cardHashes.length == CARDS_PER_PLAYER, "Must provide exactly 12 card hashes");
 
         Voyage storage voyage = voyages[_voyageId];
         if (voyage.shipId == 0) {
@@ -285,20 +321,28 @@ contract Espoir is Ownable {
         require(!player.isRegistered, "Player already registered");
 
         Ship memory ship = ships[_shipId];
-        // 检查卡片数量是否12张
-        require(_cardHashes.length == 12, "Must provide exactly 12 card hashes");        
+        // 检查卡片数量是否12张     
         for (uint i = 0; i < _cardHashes.length; i++) {
             player.cards[_cardHashes[i]] = true;
         }
+
+        // 更新玩家数据
         player.tgId = _tgId;
-        player.stars = ship.startStar;
-        player.status = "G"; // 预设状态
-        player.isRegistered = true; // 标记玩家已报名
+        player.stars = ships[_shipId].startStar; // 更新玩家星级
+        player.status = GAME_STATUS_PLAYING;  // 更新玩家状态
+        player.cardCount = CARDS_PER_PLAYER;  // 更新玩家卡片数量
+        player.isRegistered = true;  // 标记玩家已报名
+        player.walletAddress = _walletAddress;  // 更新玩家钱包地址
+
         voyage.playerCount++;
+        voyage.playerArr.push(_walletAddress);
+
         // 更新卡牌数量
         voyage.cardCounts["R"] += 4;
         voyage.cardCounts["P"] += 4;
         voyage.cardCounts["S"] += 4;
+
+        emit PlayerRegistered(_voyageId, _walletAddress);
     }
 
     // TODO:创建Table
@@ -322,14 +366,17 @@ contract Espoir is Ownable {
         voyage.tables[voyage.globaltbCount] = Table({
             firstHash: _firstHash,
             firstPlaintext: "",
-            secondHash: "",
+            secondHash: bytes32(0),
             secondPlaintext: "",
             firstOwner: _firstOwner,
             secondOwner: address(0),
             isEnded: false
         });
+
+        emit TableCreated(_voyageId, tableId);
         return voyage.globaltbCount;
     }
+
     // TODO:加入Table
     //     - 检查船班是否结算，已结算则无法进行
     //     - 针对生效中的Table，提交有效的卡牌hash，提交前需要检查hash是否有效
@@ -563,11 +610,10 @@ contract Espoir is Ownable {
         }
     }
 
-
-
     // 提现功能
-    function withdraw(uint _amount, address _to) public onlyOwner {
-        payable(_to).transfer(_amount);
+    function withdraw(uint256 _amount) public onlyOwner {
+        require(_amount <= address(this).balance, "Insufficient balance");
+        payable(owner()).transfer(_amount);
     }
 
     receive() external payable {}
