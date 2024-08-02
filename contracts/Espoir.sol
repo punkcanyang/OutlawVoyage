@@ -8,6 +8,8 @@ contract Espoir is Ownable {
     constructor(uint _houseCut) Ownable(msg.sender){
         houseCut = _houseCut;
     }
+
+    
     // 系统相关
     uint public houseCut; // 庄家抽成比例
     bool public gamePaused; // 游戏是否暂停
@@ -67,6 +69,7 @@ contract Espoir is Ownable {
         uint tablesCount; //当前活跃桌数，如果Table被创建+1,如果Table对决结束-1，用来检查能不能开新桌
         address[] playerArr; // 玩家数组
         address[] winPlayerArr; // 胜利玩家地址数组
+        uint[] allTables;
         mapping(uint => Table) tables; // Table映射
         mapping(address => Player) players; // 玩家映射
         mapping(string => Trade) trades; // 交易厅映射
@@ -97,6 +100,123 @@ contract Espoir is Ownable {
     // - 设计和开发船班的相关逻辑，包括编号、入场金、起始区块、等候报名时间和游戏时间等。
     // - 负责创建船只的逻辑，包括船只的编号、状态、卡牌数量、玩家数量等。
 
+
+
+// 获取Ship的信息
+    function getShip(uint _shipId) public view returns (
+        uint entryFee, uint startStar, uint winStar,
+        uint startBlock, uint waitBlocks, uint gameBlocks
+    ) {
+        Ship storage ship = ships[_shipId];
+        return (
+            ship.entryFee,
+            ship.startStar,
+            ship.winStar,
+            ship.startBlock,
+            ship.waitBlocks,
+            ship.gameBlocks
+        );
+    }
+
+    // 获取Table的信息
+    function getTable(uint _voyageId, uint _tableId) public view returns (
+        bytes32 firstHash, string memory firstPlaintext,
+        bytes32 secondHash, string memory secondPlaintext,
+        address firstOwner, address secondOwner, bool isEnded
+    ) {
+        Table storage table = voyages[_voyageId].tables[_tableId];
+        return (
+            table.firstHash,
+            table.firstPlaintext,
+            table.secondHash,
+            table.secondPlaintext,
+            table.firstOwner,
+            table.secondOwner,
+            table.isEnded
+        );
+    }
+
+    // 获取Player的信息
+    function getPlayer(uint _voyageId, address _walletAddress) public view returns (
+        string memory tgId, uint stars, string memory status,
+        uint cardCount, bool isRegistered, address walletAddress
+    ) {
+        Player storage player = voyages[_voyageId].players[_walletAddress];
+        return (
+            player.tgId,
+            player.stars,
+            player.status,
+            player.cardCount,
+            player.isRegistered,
+            player.walletAddress
+        );
+    }
+
+    // 获取Trade的信息
+    function getTrade(uint _voyageId, string memory _tradeId) public view returns (
+        bytes32 firstHash, address firstOwner,
+        bytes32 secondHash, address secondOwner,
+        bool isCompleted, TradeStatus status
+    ) {
+        Trade storage trade = voyages[_voyageId].trades[_tradeId];
+        return (
+            trade.firstHash,
+            trade.firstOwner,
+            trade.secondHash,
+            trade.secondOwner,
+            trade.isCompleted,
+            trade.status
+        );
+    }
+
+
+    // 获取 Voyage 的基本信息
+    function getVoyage(uint _voyageId) public view returns (
+        uint shipId,
+        bool isSettled,
+        uint playerCount,
+        uint playerOut,
+        uint tablesCount
+    ) {
+        Voyage storage voyage = voyages[_voyageId];
+        return (
+            voyage.shipId,
+            voyage.isSettled,
+            voyage.playerCount,
+            voyage.playerOut,
+            voyage.tablesCount
+        );
+    }
+
+    // 获取 Voyage 的玩家数组
+    function getVoyagePlayerArr(uint _voyageId) public view returns (address[] memory) {
+        return voyages[_voyageId].playerArr;
+    }
+
+    // 获取 Voyage 的胜利玩家数组
+    function getVoyageWinPlayerArr(uint _voyageId) public view returns (address[] memory) {
+        return voyages[_voyageId].winPlayerArr;
+    }
+
+    // 获取 Voyage 的所有 Table ID 数组
+    function getVoyageAllTables(uint _voyageId) public view returns (uint[] memory) {
+        return voyages[_voyageId].allTables;
+    }
+
+    // 获取特定 Voyage 中的卡牌计数
+    function getVoyageCardCount(uint _voyageId, string memory cardType) public view returns (uint256) {
+        return voyages[_voyageId].cardCounts[cardType];
+    }
+
+
+
+    //  获取指定玩家 全局输赢次数记录
+    function getGlobalPlayer(address _walletAddress) public view returns (uint wins, uint losses) {
+        GlobalPlayer storage globalPlayer = globalPlayers[_walletAddress];
+        return (globalPlayer.wins, globalPlayer.losses);
+    }
+
+
     // 船相关功能
     //
     function createShip(
@@ -118,9 +238,6 @@ contract Espoir is Ownable {
         });
     }
 
-    function getShip(uint _id) public view returns (Ship memory) {
-        return ships[_id];
-    }
 
     // 船班相关功能
     function createVoyage(uint _shipId, uint _voyageId) internal {
@@ -419,12 +536,7 @@ contract Espoir is Ownable {
         }
     }
 
-    //  获取指定玩家 全局输赢次数记录
-    function getGlobalPlayer(
-        address _walletAddress
-    ) public view returns (GlobalPlayer memory) {
-        return globalPlayers[_walletAddress];
-    }
+
 
     // 提现功能
     function withdraw(uint _amount, address _to) public onlyOwner {
