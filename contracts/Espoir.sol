@@ -311,7 +311,7 @@ contract Espoir is Ownable {
         bytes32 _firstHash
     ) public returns (uint tableId) {
         Voyage storage voyage = voyages[_voyageId];
-        Player storage fistOwner = voyage.players[_firstOwner];
+        // Player storage fistOwner = voyage.players[_firstOwner];
         require(voyage.isSettled == false, "Voyage already settled");
         require(voyage.tablesCount < voyage.playerCount / 2, "Too many tables");
         require(voyage.players[_firstOwner].cardCount > 0, "Player has no cards");
@@ -369,13 +369,13 @@ contract Espoir is Ownable {
         if (table.firstOwner == _commiter) {
             if (!checkPlainText(table.firstHash, _plainText)) {
                 voyage.players[table.firstOwner].stars = 0;
-                table.isEnded = true
+                table.isEnded = true;
             }
             table.firstPlaintext = _plainText;
         } else if (table.secondOwner == _commiter) {
             if (!checkPlainText(table.secondHash, _plainText)) {
                 voyage.players[table.secondOwner].stars = 0;
-                table.isEnded = true
+                table.isEnded = true;
             }
             table.secondPlaintext = _plainText;
         }
@@ -386,21 +386,21 @@ contract Espoir is Ownable {
             //置空玩家使用了的卡牌
             voyage.players[table.firstOwner].cards[table.firstHash] = false;
             voyage.players[table.secondOwner].cards[table.secondHash] = false;
-            if (keccak256(abi.encodePacked(table.firstPlaintext[0])) == keccak256(abi.encodePacked(table.secondPlaintext[0]))) {
+            if (firstplainText[0] == secondplainText[0]) {
                 // 平局
                 voyage.players[table.firstOwner].cardCount--;
                 voyage.players[table.secondOwner].cardCount--;
             } else {
                 // 胜者加一颗星星,输者扣一颗星星,比较石头剪刀布,扣除对应牌的计数
-                if (keccak256(abi.encodePacked(table.firstPlaintext[0])) == keccak256(abi.encodePacked("R")) && keccak256(abi.encodePacked(table.secondPlaintext[0])) == keccak256(abi.encodePacked("S"))) {
+                if (firstplainText[0] == "R" && secondplainText[0] == "S") {
                     voyage.players[table.firstOwner].stars++;
                     voyage.players[table.secondOwner].stars--;
                     voyage.cardCounts["S"]--;
-                } else if (keccak256(abi.encodePacked(table.firstPlaintext[0])) == keccak256(abi.encodePacked("S")) && keccak256(abi.encodePacked(table.secondPlaintext[0])) == keccak256(abi.encodePacked("P"))) {
+                } else if (firstplainText[0] == "S" && secondplainText[0] == "P") {
                     voyage.players[table.firstOwner].stars++;
                     voyage.players[table.secondOwner].stars--;
                     voyage.cardCounts["P"]--;
-                } else if (keccak256(abi.encodePacked(table.firstPlaintext[0])) == keccak256(abi.encodePacked("P")) && keccak256(abi.encodePacked(table.secondPlaintext[0])) == keccak256(abi.encodePacked("R"))) {
+                } else if (firstplainText[0] == "P" && secondplainText[0] == "R") {
                     voyage.players[table.firstOwner].stars++;
                     voyage.players[table.secondOwner].stars--;
                     voyage.cardCounts["R"]--;
