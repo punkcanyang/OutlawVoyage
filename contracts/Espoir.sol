@@ -171,7 +171,7 @@ contract Espoir is Ownable {
 
 
     // 获取 Voyage 的基本信息
-    function getVoyageInfo(uint _voyageId) public view returns (
+    function getVoyage(uint _voyageId) public view returns (
         uint shipId,
         bool isSettled,
         uint playerCount,
