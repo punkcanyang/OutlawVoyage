@@ -5,7 +5,7 @@ import {
   getDefaultConfig,
   RainbowKitProvider,
 } from '@rainbow-me/rainbowkit';
-import { WagmiProvider } from 'wagmi';
+import { http, WagmiProvider } from 'wagmi';
 import { mainnet, hardhat } from 'wagmi/chains';
 import {
   QueryClientProvider,
@@ -28,7 +28,11 @@ const w3q = Object.freeze({
 const config = getDefaultConfig({
   appName: "Web3 App",
   projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || "",
-  chains: [w3q],
+  chains: [w3q, hardhat],
+  transports: {
+    [w3q.id]: http(),
+    [hardhat.id]: http("http://127.0.0.1:8545/"),
+  },
   ssr: true,
 })
 
