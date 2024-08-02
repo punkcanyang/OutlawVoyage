@@ -67,9 +67,10 @@ contract Espoir is Ownable {
         uint playerCount; // 全部玩家数量（不论死活）
         uint playerOut; //出局玩家数量
         uint tablesCount; //当前活跃桌数，如果Table被创建+1,如果Table对决结束-1，用来检查能不能开新桌
+        uint globaltbCount; //当前生成过的桌子总量
         address[] playerArr; // 玩家数组
         address[] winPlayerArr; // 胜利玩家地址数组
-        uint[] allTables;
+        uint[] allTables;       //存储当前正在活动的桌子的下标
         mapping(uint => Table) tables; // Table映射
         mapping(address => Player) players; // 玩家映射
         mapping(string => Trade) trades; // 交易厅映射
@@ -315,9 +316,10 @@ contract Espoir is Ownable {
         require(voyage.tablesCount < voyage.playerCount / 2, "Too many tables");
         require(voyage.players[_firstOwner].cardCount > 0, "Player has no cards");
         voyage.tablesCount++;
+        voyage.globaltbCount++;
         //提交有效的卡牌hash，提交前需要检查hash是否有效
         require(checkCardValidity(_voyageId, _firstOwner, _firstHash), "Invalid card hash");
-        voyage.tables[voyage.tablesCount] = Table({
+        voyage.tables[voyage.globaltbCount] = Table({
             firstHash: _firstHash,
             firstPlaintext: "",
             secondHash: "",
@@ -326,7 +328,7 @@ contract Espoir is Ownable {
             secondOwner: address(0),
             isEnded: false
         });
-        return voyage.tablesCount;
+        return voyage.globaltbCount;
     }
     // TODO:加入Table
     //     - 检查船班是否结算，已结算则无法进行
@@ -365,43 +367,68 @@ contract Espoir is Ownable {
         Table storage table = voyage.tables[_tableId];
         require(table.isEnded == false, "Table already ended");
         if (table.firstOwner == _commiter) {
-            require(checkPlainText(table.firstHash, _plainText), "Invalid plain text");
+            if (!checkPlainText(table.firstHash, _plainText)) {
+                voyage.players[table.firstOwner].stars = 0;
+                table.isEnded = true
+            }
             table.firstPlaintext = _plainText;
         } else if (table.secondOwner == _commiter) {
-            require(checkPlainText(table.secondHash, _plainText), "Invalid plain text");
+            if (!checkPlainText(table.secondHash, _plainText)) {
+                voyage.players[table.secondOwner].stars = 0;
+                table.isEnded = true
+            }
             table.secondPlaintext = _plainText;
         }
-        if (bytes(table.firstPlaintext).length != 0 && bytes(table.secondPlaintext).length != 0) {
+        bytes memory firstplainText = bytes(table.firstPlaintext);
+        bytes memory secondplainText = bytes(table.secondPlaintext);
+        if (firstplainText.length != 0 && secondplainText.length != 0 && table.isEnded == false) {
             // 结算Table
             //置空玩家使用了的卡牌
             voyage.players[table.firstOwner].cards[table.firstHash] = false;
             voyage.players[table.secondOwner].cards[table.secondHash] = false;
-            if (keccak256(abi.encodePacked(table.firstPlaintext)) == keccak256(abi.encodePacked(table.secondPlaintext))) {
+            if (keccak256(abi.encodePacked(table.firstPlaintext[0])) == keccak256(abi.encodePacked(table.secondPlaintext[0]))) {
                 // 平局
                 voyage.players[table.firstOwner].cardCount--;
                 voyage.players[table.secondOwner].cardCount--;
             } else {
-                // 胜者加一颗星星,比较石头剪刀布,扣除对应牌的计数
-                if (keccak256(abi.encodePacked(table.firstPlaintext)) == keccak256(abi.encodePacked("R")) && keccak256(abi.encodePacked(table.secondPlaintext)) == keccak256(abi.encodePacked("S"))) {
+                // 胜者加一颗星星,输者扣一颗星星,比较石头剪刀布,扣除对应牌的计数
+                if (keccak256(abi.encodePacked(table.firstPlaintext[0])) == keccak256(abi.encodePacked("R")) && keccak256(abi.encodePacked(table.secondPlaintext[0])) == keccak256(abi.encodePacked("S"))) {
                     voyage.players[table.firstOwner].stars++;
+                    voyage.players[table.secondOwner].stars--;
                     voyage.cardCounts["S"]--;
-                } else if (keccak256(abi.encodePacked(table.firstPlaintext)) == keccak256(abi.encodePacked("S")) && keccak256(abi.encodePacked(table.secondPlaintext)) == keccak256(abi.encodePacked("P"))) {
+                } else if (keccak256(abi.encodePacked(table.firstPlaintext[0])) == keccak256(abi.encodePacked("S")) && keccak256(abi.encodePacked(table.secondPlaintext[0])) == keccak256(abi.encodePacked("P"))) {
                     voyage.players[table.firstOwner].stars++;
+                    voyage.players[table.secondOwner].stars--;
                     voyage.cardCounts["P"]--;
-                } else if (keccak256(abi.encodePacked(table.firstPlaintext)) == keccak256(abi.encodePacked("P")) && keccak256(abi.encodePacked(table.secondPlaintext)) == keccak256(abi.encodePacked("R"))) {
+                } else if (keccak256(abi.encodePacked(table.firstPlaintext[0])) == keccak256(abi.encodePacked("P")) && keccak256(abi.encodePacked(table.secondPlaintext[0])) == keccak256(abi.encodePacked("R"))) {
                     voyage.players[table.firstOwner].stars++;
+                    voyage.players[table.secondOwner].stars--;
                     voyage.cardCounts["R"]--;
                 } else {
                     voyage.players[table.secondOwner].stars++;
+                    voyage.players[table.firstOwner].stars--;
                     voyage.cardCounts["S"]--;
                 }
-
                 voyage.players[table.firstOwner].cardCount--;
                 voyage.players[table.secondOwner].cardCount--;
             }
-
             table.isEnded = true;
         }
+        //检查是否有玩家出局
+        //如果玩家星星为0，状态改为出局
+        if (voyage.players[table.firstOwner].stars == 0) {
+            voyage.players[table.firstOwner].status = "Z";
+            voyage.playerOut++;
+        }
+        if (voyage.players[table.secondOwner].stars == 0) {
+            voyage.players[table.secondOwner].status = "Z";
+            voyage.playerOut++;
+        }
+        //检查table是否结束，如果结束，tablesCount-1    
+        if (table.isEnded == true) {
+            voyage.tablesCount--;
+        }
+
     }
 
     // 明文检查，玩家贴入明文后，确认牌跟Hash一致，不一致则违规出局！丧失资格
