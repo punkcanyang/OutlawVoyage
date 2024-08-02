@@ -66,6 +66,7 @@ contract Espoir is Ownable {
         uint playerOut; //出局玩家数量
         uint tablesCount; //当前活跃桌数，如果Table被创建+1,如果Table对决结束-1，用来检查能不能开新桌
         address[] playerArr; // 玩家数组
+        address[] winPlayerArr; // 胜利玩家地址数组
         mapping(uint => Table) tables; // Table映射
         mapping(address => Player) players; // 玩家映射
         mapping(string => Trade) trades; // 交易厅映射
@@ -176,7 +177,6 @@ contract Espoir is Ownable {
         player.status = "G"; // 预设状态
         player.isRegistered = true; // 标记玩家已报名
         voyage.playerCount++;
-        // voyage.playerArr.push(address);
         // 更新卡牌数量
         voyage.cardCounts["R"] += 4;
         voyage.cardCounts["P"] += 4;
@@ -287,11 +287,11 @@ contract Espoir is Ownable {
         }
     }
 
-    // TODO: 明文检查，玩家贴入明文后，确认牌跟Hash一致，不一致则违规出局！丧失资格
+    // 明文检查，玩家贴入明文后，确认牌跟Hash一致，不一致则违规出局！丧失资格
     function checkPlainText(
         bytes32 _cardHash,
         string memory _plainText
-    ) public returns (bool) {
+    ) public pure returns (bool) {
         return keccak256(abi.encodePacked(_plainText)) == _cardHash;
     }
      // 创建交易 
@@ -300,11 +300,11 @@ contract Espoir is Ownable {
     function createTread(uint _shipId , uint _voyageId, string memory _tradeId, address _walletAddress, bytes32 _hash) public returns (string memory, TradeStatus) {
         // 判断航班是否正常
         Voyage storage voyage = voyages[_voyageId];
-        require(voyage.shipId > 0, "Voyage not existed");
+        require(voyage.shipId > 0 && voyage.shipId == _shipId , "Voyage not existed");
         require(voyage.isSettled == false, "Voyage already settled");
         // 判断 玩家地址是否存在
-        Player storage fistOwner = voyage.players[_walletAddress];
-        require(voyage.players[_walletAddress].walletAddress != address(0), "address not existed");
+        Player storage owner = voyage.players[_walletAddress];
+        require(owner.walletAddress != address(0), "address not existed");
         // 校验卡片
         require(checkCardValidity(_voyageId, _walletAddress,_hash) == true, "card not belong you");
         Trade memory tradeInfo = voyage.trades[_tradeId];
@@ -330,9 +330,9 @@ contract Espoir is Ownable {
     }
 
    // 确认交易，交换归属
-   function confoirmTrade(int _shipId , uint _voyageId, string memory _tradeId, address _walletAddress) public {
+   function confoirmTrade(uint _shipId , uint _voyageId, string memory _tradeId, address _walletAddress) public {
         Voyage storage voyage = voyages[_voyageId];
-        require(voyage.shipId > 0, "Voyage not existed");
+        require(voyage.shipId > 0 && voyage.shipId == _shipId, "Voyage not existed");
         require(voyage.isSettled == false, "Voyage already settled");
         Trade memory tradeInfo = voyage.trades[_tradeId];
         require(tradeInfo.status == TradeStatus.ToBeConfirmed, "Trade info error");
@@ -352,6 +352,7 @@ contract Espoir is Ownable {
     // - 检查是否符合结算条件
     // - 手里必须没有牌+星星必须大于等于 3 颗 才算赢，其他情况的都算输
     // - 分配金额（按照胜者的星星总数评分）
+
     function settleShip(uint _shipId,uint _voyageId) public payable {
         // 判断航班是否正常
         Voyage storage voyage = voyages[_voyageId];
@@ -364,8 +365,7 @@ contract Espoir is Ownable {
         // 判断输赢，遍历玩家
         uint winStarCount = 0; // 全部胜星数量
         uint totalEntryFee = ship.entryFee * voyage.playerArr.length * houseCut / 100; // 全部入场金
-        // 庄家获取 分成比例
-        address[] storage winPlayerAddressArr;
+        // 庄家获取 分成比例 new address[](0)
         // 判断输赢，并记录相关的数据
         for (uint256 i = 0; i < voyage.playerArr.length; i++) {
             address playerAddress = voyage.playerArr[i];
@@ -374,14 +374,14 @@ contract Espoir is Ownable {
             if (player.stars >= ship.winStar && player.cardCount == 0) {
                 globalPlayers[playerAddress].wins += 1;
                 winStarCount += player.stars;
-                winPlayerAddressArr.push(playerAddress);
+                voyage.winPlayerArr.push(playerAddress);
             } else {
                 globalPlayers[playerAddress].losses += 1;
             }
         }
         // 遍历转账
-        for (uint256 i = 0; i < winPlayerAddressArr.length; i++) {
-            address playerAddress = winPlayerAddressArr[i];
+        for (uint256 i = 0; i < voyage.winPlayerArr.length; i++) {
+            address playerAddress = voyage.winPlayerArr[i];
             uint winAmount = totalEntryFee * voyage.players[playerAddress].stars / winStarCount;
             payable(playerAddress).transfer(winAmount);
         }
