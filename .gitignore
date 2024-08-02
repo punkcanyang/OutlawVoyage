@@ -22,3 +22,4 @@ ignition/deployments/chain-31337
 .obsidian/core-plugins-migration.json
 .obsidian/core-plugins.json
 .obsidian/workspace.json
+yarn.lock
