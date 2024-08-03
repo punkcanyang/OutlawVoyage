@@ -2,11 +2,11 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract Espoir is Ownable, ReentrancyGuard {
-    using SafeMath for uint256;
+    using Math for uint256;
 
     // 常量
     uint8 private constant CARDS_PER_PLAYER = 12;
