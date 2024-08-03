@@ -4,6 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract Espoir is Ownable, ReentrancyGuard {
     using Math for uint256;
@@ -521,13 +522,10 @@ contract Espoir is Ownable, ReentrancyGuard {
         }
         bytes memory firstplainText = bytes(table.firstPlaintext);
         bytes memory secondplainText = bytes(table.secondPlaintext);
-        if (
-            firstplainText.length != 0 &&
-            secondplainText.length != 0 &&
-            table.isEnded == false &&
-            voyage.players[table.firstOwner].status != "O" &&
-            voyage.players[table.secondOwner].status != "O"
-        ) {
+    
+        if (firstplainText.length != 0 && secondplainText.length != 0 && !table.isEnded &&
+        keccak256(bytes(voyage.players[table.firstOwner].status)) != keccak256(bytes("O")) &&
+        keccak256(bytes(voyage.players[table.secondOwner].status)) != keccak256(bytes("O"))) {
             // 结算Table
             //置空玩家使用了的卡牌
             voyage.players[table.firstOwner].cards[table.firstHash] = false;
