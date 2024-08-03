@@ -382,7 +382,7 @@ contract Espoir is Ownable, ReentrancyGuard {
     function registerPlayer(
         uint _shipId,
         uint _voyageId,
-        address _walletAddress,
+        // address _walletAddress,
         string memory _tgId,
         bytes32[] memory _cardHashes
     ) public payable nonReentrant {
@@ -393,7 +393,7 @@ contract Espoir is Ownable, ReentrancyGuard {
             _cardHashes.length == CARDS_PER_PLAYER,
             "Must provide exactly 12 card hashes"
         );
-
+        address _walletAddress = msg.sender;
         Voyage storage voyage = voyages[_voyageId];
         if (voyage.shipId == 0) {
             // 默认情况下，如果voyage尚未初始化，shipId和isSettled应该是0和false
@@ -521,10 +521,16 @@ contract Espoir is Ownable, ReentrancyGuard {
         }
         bytes memory firstplainText = bytes(table.firstPlaintext);
         bytes memory secondplainText = bytes(table.secondPlaintext);
-    
-        if (firstplainText.length != 0 && secondplainText.length != 0 && !table.isEnded &&
-        keccak256(bytes(voyage.players[table.firstOwner].status)) != keccak256(bytes("O")) &&
-        keccak256(bytes(voyage.players[table.secondOwner].status)) != keccak256(bytes("O"))) {
+
+        if (
+            firstplainText.length != 0 &&
+            secondplainText.length != 0 &&
+            !table.isEnded &&
+            keccak256(bytes(voyage.players[table.firstOwner].status)) !=
+            keccak256(bytes("O")) &&
+            keccak256(bytes(voyage.players[table.secondOwner].status)) !=
+            keccak256(bytes("O"))
+        ) {
             // 结算Table
             //置空玩家使用了的卡牌
             voyage.players[table.firstOwner].cards[table.firstHash] = false;
