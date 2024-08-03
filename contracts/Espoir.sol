@@ -421,14 +421,14 @@ contract Espoir is Ownable, ReentrancyGuard {
             table.firstPlaintext = _plainText;
         } else if (table.secondOwner == _commiter) {
             if (!checkPlainText(table.secondHash, _plainText)) {
-                voyage.players[table.secondOwner].stars = 0;
+                voyage.players[table.secondOwner].status="O";   
                 table.isEnded = true;
             }
             table.secondPlaintext = _plainText;
         }
         bytes memory firstplainText = bytes(table.firstPlaintext);
         bytes memory secondplainText = bytes(table.secondPlaintext);
-        if (firstplainText.length != 0 && secondplainText.length != 0 && table.isEnded == false) {
+        if (firstplainText.length != 0 && secondplainText.length != 0 && table.isEnded == false && voyage.players[table.firstOwner].status != "O" && voyage.players[table.secondOwner].status != "O") {
             // 结算Table
             //置空玩家使用了的卡牌
             voyage.players[table.firstOwner].cards[table.firstHash] = false;
