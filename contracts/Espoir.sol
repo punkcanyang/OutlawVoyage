@@ -4,7 +4,6 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract Espoir is Ownable, ReentrancyGuard {
     using Math for uint256;
@@ -403,7 +402,7 @@ contract Espoir is Ownable, ReentrancyGuard {
         Player storage player = voyage.players[_walletAddress];
         require(!player.isRegistered, "Player already registered");
 
-        Ship memory ship = ships[_shipId];
+        // Ship memory ship = ships[_shipId];
         // 检查卡片数量是否12张
         for (uint i = 0; i < _cardHashes.length; i++) {
             player.cards[_cardHashes[i]] = true;

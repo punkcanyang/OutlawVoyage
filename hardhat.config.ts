@@ -10,8 +10,16 @@ const {
 } = process.env
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.20",
-  networks: {
+  solidity: {
+    version: "0.8.20",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200 // 低 "runs" 值可以进一步减少大小，通常在 200 以内。
+      }
+    }
+  },
+    networks: {
     web3qtest: {
       url: Web3Q_GALILEO_TEST_URL,
       chainId: Number(Web3Q_GALILEO_TEST_CHAIN_ID),
