@@ -71,6 +71,7 @@ contract Espoir is Ownable, ReentrancyGuard {
         mapping(bytes32 => bool) cards; // 卡牌（用卡牌HASH作为Key），如果换牌了，玩家旧牌false，并增加新牌
         bool isRegistered; // 用来检查是否已报名
         address walletAddress; // 玩家钱包地址
+
     }
 
     // 交易状态
@@ -116,6 +117,7 @@ contract Espoir is Ownable, ReentrancyGuard {
     }
 
     mapping(address => GlobalPlayer) public globalPlayers; // 全局玩家映射
+    mapping(uint=>mapping(address=>uint)) public lastPlayerVoyage;// 玩家在每艘船上最后一次玩的船班
 
     // 系统相关功能
     // 设定抽成比例，例如30，就是先扣除30%
@@ -418,6 +420,7 @@ contract Espoir is Ownable, ReentrancyGuard {
 
         voyage.playerCount++;
         voyage.playerArr.push(_walletAddress);
+        lastPlayerVoyage[_shipId][_walletAddress]=_voyageId;
 
         // 更新卡牌数量
         voyage.cardCounts["R"] += 4;
@@ -426,6 +429,59 @@ contract Espoir is Ownable, ReentrancyGuard {
 
         emit PlayerRegistered(_voyageId, _walletAddress);
     }
+
+   function updateRegisteredPlayer(
+        uint _shipId,
+        uint _voyageId,
+        string memory _tgId,
+        bytes32[] memory _cardHashes
+    ) public {
+        require(isValidNextVoyageId(_shipId, _voyageId), "Invalid voyage ID");
+        require(!gamePaused, "Game is paused");
+        require(
+            _cardHashes.length == CARDS_PER_PLAYER,
+            "Must provide exactly 12 card hashes"
+        );
+        address _walletAddress = msg.sender;
+        uint lastVoyageId = lastPlayerVoyage[_shipId][_walletAddress];
+        Voyage storage lastvoyage = voyages[lastVoyageId];
+        // 检查玩家上一场是否为一个人
+        require(lastvoyage.playerCount == 1,"not eligible");
+
+        Voyage storage voyage = voyages[_voyageId];
+        if (voyage.shipId == 0) {
+            // 默认情况下，如果voyage尚未初始化，shipId和isSettled应该是0和false
+            createVoyage(_shipId, _voyageId);
+        }
+        Player storage player = voyage.players[_walletAddress];
+        require(!player.isRegistered, "Player already registered");
+
+        // Ship memory ship = ships[_shipId];
+        // 检查卡片数量是否12张
+        for (uint i = 0; i < _cardHashes.length; i++) {
+            player.cards[_cardHashes[i]] = true;
+        }
+
+        // 更新玩家数据
+        player.tgId = _tgId;
+        player.stars = ships[_shipId].startStar; // 更新玩家星级
+        player.status = GAME_STATUS_PLAYING; // 更新玩家状态
+        player.cardCount = CARDS_PER_PLAYER; // 更新玩家卡片数量
+        player.isRegistered = true; // 标记玩家已报名
+        player.walletAddress = _walletAddress; // 更新玩家钱包地址
+
+        voyage.playerCount++;
+        voyage.playerArr.push(_walletAddress);
+        lastPlayerVoyage[_shipId][_walletAddress]=_voyageId;
+
+        // 更新卡牌数量
+        voyage.cardCounts["R"] += 4;
+        voyage.cardCounts["P"] += 4;
+        voyage.cardCounts["S"] += 4;
+
+        emit PlayerRegistered(_voyageId, _walletAddress);
+    }
+
 
     // TODO:创建Table
     //     - 检查船班是否结算，已结算则无法进行
