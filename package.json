@@ -23,6 +23,7 @@
   "homepage": "https://github.com/OutlawVoyage/OutlawVoyage#readme",
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox-viem": "^3.0.0",
+    "@nomicfoundation/hardhat-verify": "^2.0.9",
     "@openzeppelin/contracts": "^5.0.2",
     "dotenv": "^16.4.5",
     "hardhat": "^2.22.7",
