@@ -495,7 +495,7 @@ contract Espoir is Ownable, ReentrancyGuard {
         Voyage storage voyage = voyages[_voyageId];
         // Player storage fistOwner = voyage.players[_firstOwner];
         require(voyage.isSettled == false, "Voyage already settled");
-        require(voyage.tablesCount < voyage.playerCount / 2, "Too many tables");
+        require(voyage.tablesCount <= voyage.playerCount / 2, "Too many tables");
         require(
             voyage.players[_firstOwner].cardCount > 0,
             "Player has no cards"
