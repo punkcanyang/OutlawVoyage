@@ -1,17 +1,16 @@
 // scripts/deploy.js
 
-const hre = require("hardhat");
+// const hre = require("hardhat");
+
+import hre from "hardhat";
 
 async function main() {
   const MyContract = await hre.ethers.getContractFactory("Espoir");
   const myContract = await MyContract.deploy(30,false);
 
+  // await myContract.deployed();
 
-
-
-  await myContract.deployed();
-
-  console.log("MyContract deployed to:", myContract.address);
+  console.log("MyContract deployed to:", await myContract.getAddress());
 }
 
 main()
