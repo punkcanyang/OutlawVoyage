@@ -18,7 +18,7 @@
 ### 3. 技术架构
 
 - **区块链平台**：首发Web3URL
-- **智能合约**：概述智能合约的核心功能和作用。 - 待更新
+- **智能合约**：hardhat
 - **前端技术栈**：React, Next.js, Shadcn-ui, Tailwind CSS, Wagmi
 
 ### 4. 功能模块
