@@ -27,3 +27,5 @@ package-lock.json
 bun.lockb
 package-lock.json
 .gitignore
+env
+package.json
