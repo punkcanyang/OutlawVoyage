@@ -4,13 +4,99 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Upload } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { useEffect } from "react";
+import { EspoirABI } from "@/abi/Espoir";
+import { keccak256, toBytes, parseEther, formatEther } from "viem";
+import { useLocalStorage } from "usehooks-ts";
+import { useForm } from 'react-hook-form'
+
+const contractAddress = '0x8539989C5fFce3660937a7d00EC852421428E4E9'
 
 export default function CruisePage() {
   const router = useRouter();
+  const { address } = useAccount();
+  const [cardHashesStorage, setCardHashesStorage] = useLocalStorage<{
+    [address: string]: `0x${string}`[];
+  }>('cardHashes', {});
+  const form = useForm({
+    defaultValues: {
+      tgId: "",
+    }
+  })
+
+  // 获取或生成当前用户的 cardHashes
+  const getOrGenerateCardHashes = () => {
+    if (address && cardHashesStorage[address]) {
+      return cardHashesStorage[address];
+    }
+
+    const newCardHashes = Array(12).fill(0).map(() => keccak256(toBytes(Math.random().toString())));
+
+    if (address) {
+      setCardHashesStorage(prevState => ({
+        ...prevState,
+        [address]: newCardHashes
+      }));
+    }
+
+    return newCardHashes;
+  }
+
+
+  const handleSubmit = form.handleSubmit(async (formData) => {
+    console.log(formData);
+    console.log("voyageId: ", voyageId)
+
+    if (!voyageId) return
+    if (!formData.tgId) return
+    const cardHashes = getOrGenerateCardHashes()
+    console.log({cardHashes});
+
+    await registerPlayerWrite({
+      address: contractAddress,
+      abi: EspoirABI,
+      functionName: 'registerPlayer',
+      args: [
+        // 1. _shipId
+        BigInt(1),
+        // 2. _voyageId
+        voyageId,
+        // 3. _tgId
+        formData.tgId,
+        // 4. _cardHashes
+        cardHashes
+      ],
+      value: parseEther("1"),
+    })
+  })
 
   const handleGoBack = () => {
     router.back();
   }
+
+  const { data: voyageId } = useReadContract({
+    abi: EspoirABI,
+    address: contractAddress,
+    functionName: 'getNextVoyageId',
+    args: [BigInt(1)],
+  })
+
+  const {
+    writeContractAsync: registerPlayerWrite,
+    isPending: isRegisterPlayerLoading,
+    data: registerPlayerHash,
+  } = useWriteContract()
+  const {isSuccess: isRegisterPlayerSuccess} = useWaitForTransactionReceipt({
+    hash: registerPlayerHash,
+  })
+
+  useEffect(() => {
+    console.log(isRegisterPlayerSuccess);
+    if (isRegisterPlayerSuccess) {
+      router.push('/table')
+    }
+  }, [isRegisterPlayerSuccess]);
 
   return (
     <div className="container px-4 max-w-4xl flex min-h-screen flex-col py-12 gap-4">
@@ -49,15 +135,7 @@ export default function CruisePage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <Button variant="outline">链接钱包</Button>
-        <Button variant="outline">支付</Button>
-        <Button variant="outline">下载模板</Button>
-        <Button variant="outline">下载HASH号表单</Button>
-        <Button variant="outline" className="col-span-2">上传HASH</Button>
-      </div>
-
-      <div className="space-y-4">
+      <form className="space-y-4" onSubmit={handleSubmit}>
         <h2 className="text-xl font-semibold">报名该游轮</h2>
         <div>
           <label className="block text-sm font-medium mb-1">玩家昵称</label>
@@ -83,10 +161,10 @@ export default function CruisePage() {
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">telegram id</label>
-          <Input placeholder="请输入"/>
+          <Input placeholder="请输入" {...form.register('tgId')} />
         </div>
-        <Button className="w-full" onClick={() => router.push('/table')}>I'm In</Button>
-      </div>
+        <Button type="submit" className="w-full">支付</Button>
+      </form>
 
     </div>
   );
