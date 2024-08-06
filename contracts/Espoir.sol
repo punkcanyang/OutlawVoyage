@@ -320,6 +320,13 @@ contract Espoir is Ownable, ReentrancyGuard {
         return voyages[_voyageId].allTables;
     }
 
+    function isVoyageTableEnded(
+        uint _voyageId,
+        uint _tableId
+    ) public view returns (bool) {
+        return voyages[_voyageId].tables[_tableId].isEnded;
+    }
+
     // 获取特定 Voyage 中的卡牌计数
     function getVoyageCardCount(
         uint _voyageId,
@@ -517,6 +524,8 @@ contract Espoir is Ownable, ReentrancyGuard {
             isEnded: false
         });
 
+        voyage.allTables.push(voyage.globaltbCount);
+
         emit TableCreated(_voyageId, tableId);
         return voyage.globaltbCount;
     }
@@ -636,6 +645,16 @@ contract Espoir is Ownable, ReentrancyGuard {
         //检查table是否结束，如果结束，tablesCount-1
         if (table.isEnded == true) {
             voyage.tablesCount--;
+
+        for (uint i = 0; i < voyage.allTables.length; i++) {
+            if (voyage.allTables[i] == _tableId) {
+                // 用数组的最后一个元素替换当前元素
+                voyage.allTables[i] = voyage.allTables[voyage.allTables.length - 1];
+                // 删除数组的最后一个元素
+                voyage.allTables.pop();
+                break; // 删除第一个找到的元素后退出循环
+            }
+        }   
         }
     }
 
