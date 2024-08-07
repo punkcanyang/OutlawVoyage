@@ -7,6 +7,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 import { Providers } from "./providers";
+import { NavHeader } from "@/components/nav-header";
 
 export const metadata: Metadata = {
   title: "Outlaw Voyage",
@@ -21,11 +22,14 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={cn(
-        "min-h-screen bg-background font-sans antialiased",
+        "min-h-screen bg-background font-sans antialiased overflow-hidden",
         inter.className
       )}>
         <Providers>
-          {children}
+          <div className="relative flex flex-col h-screen">
+            <NavHeader />
+            {children}
+          </div>
         </Providers>
       </body>
     </html>
