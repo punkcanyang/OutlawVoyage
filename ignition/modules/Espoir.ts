@@ -8,6 +8,8 @@ const EspoirModule = buildModule("Espoir", (m) => {
 
   const token = m.contract("Espoir", [houseCut]);
 
+  console.log('token: ', token)
+
   return { token };
 });
 

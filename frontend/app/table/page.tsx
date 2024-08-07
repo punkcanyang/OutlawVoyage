@@ -3,16 +3,100 @@ import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Users } from 'lucide-react';
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
+import { Espoir } from "@/contracts/Espoir";
+import { useLocalStorage } from "usehooks-ts";
+import { PageContainer } from "@/components/page-container";
 
 
 export default function TableSelectionPage() {
+  const { address } = useAccount()
   const router = useRouter();
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
+  const [cardHashesStorage, setCardHashesStorage] = useLocalStorage<{
+    [address: string]: `0x${string}`[];
+  }>('cardHashes', {});
+
 
   const handleGoBack = () => {
     router.back();
-  };
+  }
+
+  // 获取用户加入的航班号
+  const { data: voyageId } = useReadContract({
+    abi: Espoir.ABI,
+    address: Espoir.ADDRESS,
+    functionName: 'lastPlayerVoyage',
+    args: address ? [BigInt(1), address] : undefined,
+    query: {
+      enabled: !!address,
+    }
+  })
+
+  // 获取航程数据
+  const { data: voyageData, isLoading: isVoyageDataLoading } = useReadContract({
+    abi: Espoir.ABI,
+    address: Espoir.ADDRESS,
+    functionName: 'getVoyage',
+    args: voyageId ? [voyageId] : undefined,
+    query: {
+      enabled: !!voyageId,
+      select: (data) => {
+        const [shipId, isSettled, playerCount, playerOut, tablesCount] = data
+        return { playerCount, tablesCount }
+      }
+    }
+  })
+
+  // 获取所有table
+  const { data: tablesData, isLoading: isTablesDataLoading } = useReadContract({
+    abi: Espoir.ABI,
+    address: Espoir.ADDRESS,
+    functionName: 'getVoyageAllTables',
+    args: voyageId ? [voyageId] : undefined,
+    query: {
+      enabled: !!voyageId,
+    }
+  })
+
+  console.log({tablesData});
+
+  const {
+    writeContractAsync: createTableWrite,
+    isPending: isCreateTableLoading,
+    data: createTableHash,
+  } = useWriteContract()
+  const {isSuccess: isCreateTableSuccess} = useWaitForTransactionReceipt({
+    hash: createTableHash,
+  })
+
+  const {
+    writeContractAsync: joinTableWrite,
+    isPending: isJoinTableLoading,
+    data: joinTableHash,
+  } = useWriteContract()
+  const {isSuccess: isJoinTableSuccess} = useWaitForTransactionReceipt({
+    hash: joinTableHash,
+  })
+
+  useEffect(() => {
+    if (voyageId) {
+      console.log({voyageId});
+    }
+  }, [voyageId])
+
+  useEffect(() => {
+    if (voyageData) {
+      console.log(voyageData);
+    }
+  }, [voyageData])
+
+  useEffect(() => {
+    if (isJoinTableSuccess) {
+      console.log(isJoinTableSuccess);
+    }
+  }, [isJoinTableSuccess])
 
   const tables = [
     { id: 1, name: '桌子 1', status: '正在用', players: 3 },
@@ -26,8 +110,56 @@ export default function TableSelectionPage() {
     { id: 9, name: '桌子 9', status: '空闲中', players: 0 },
   ];
 
+  const handleCreateTable = async () => {
+    if (!address) return
+    const cards = cardHashesStorage[address]
+    console.log({
+      voyageId,
+      address,
+      cards,
+    })
+    if (!voyageId || !address || !cards) return
+
+    await createTableWrite({
+      address: Espoir.ADDRESS,
+      abi: Espoir.ABI,
+      functionName: 'createTable',
+      args: [
+        voyageId,
+        address,
+        cards[0],
+      ]
+    })
+  }
+
+  const handleJoinTable = async () => {
+    if (!address) return
+
+    console.log({
+      voyageId,
+      address,
+      tablesData,
+    })
+    if (!voyageId || !address || !tablesData) return
+
+    await joinTableWrite({
+      address: Espoir.ADDRESS,
+      abi: Espoir.ABI,
+      functionName: 'joinTable',
+      args: [
+        voyageId,
+        // _tableId
+        tablesData[0],
+        // _secondOwner
+        address,
+        // _secondHash
+        cardHashesStorage[address][1]
+      ]
+    })
+  }
+
   return (
-    <div className="container px-4 max-w-4xl flex min-h-screen flex-col py-12 gap-4">
+    <PageContainer backgroundImage="/images/bg.png">
       <div className="flex items-center mb-4">
         <Button
           variant="ghost"
@@ -47,11 +179,9 @@ export default function TableSelectionPage() {
           <CardTitle>嘉年华幻想号</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="font-semibold mb-2">剩余卡量</p>
           <div className="flex justify-between mb-4">
-            <Button variant="outline">石头</Button>
-            <Button variant="outline">剪刀</Button>
-            <Button variant="outline">布</Button>
+            <Button variant="outline" onClick={handleCreateTable}>创建</Button>
+            <Button variant="outline" onClick={handleJoinTable}>加入</Button>
           </div>
         </CardContent>
       </Card>
@@ -98,6 +228,6 @@ export default function TableSelectionPage() {
         <div className="h-[120px]">
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }
