@@ -103,6 +103,7 @@ contract Espoir is Ownable, ReentrancyGuard {
         address[] playerArr; // 玩家数组
         address[] winPlayerArr; // 胜利玩家地址数组
         uint[] allTables; //存储当前正在活动的桌子的下标
+        uint[] tablesOnlyOne; //显示只有一个玩家的桌子
         mapping(uint => Table) tables; // Table映射
         mapping(address => Player) players; // 玩家映射
         mapping(string => Trade) trades; // 交易厅映射
@@ -320,6 +321,12 @@ contract Espoir is Ownable, ReentrancyGuard {
         return voyages[_voyageId].allTables;
     }
 
+    function getVoyageTablesOnlyOne(
+        uint _voyageId
+    ) public view returns (uint[] memory) {
+        return voyages[_voyageId].tablesOnlyOne;
+    }
+
     function isVoyageTableEnded(
         uint _voyageId,
         uint _tableId
@@ -525,6 +532,7 @@ contract Espoir is Ownable, ReentrancyGuard {
         });
 
         voyage.allTables.push(voyage.globaltbCount);
+        voyage.tablesOnlyOne.push(voyage.globaltbCount);
 
         emit TableCreated(_voyageId, tableId);
         return voyage.globaltbCount;
@@ -553,6 +561,17 @@ contract Espoir is Ownable, ReentrancyGuard {
         );
         table.secondHash = _secondHash;
         table.secondOwner = _secondOwner;
+
+        //加入后移除tablesOnlyOne的id
+        for (uint i = 0; i < voyage.tablesOnlyOne.length; i++) {
+            if (voyage.tablesOnlyOne[i] == _tableId) {
+                voyage.tablesOnlyOne[i] = voyage.tablesOnlyOne[voyage.tablesOnlyOne.length - 1];
+                voyage.tablesOnlyOne.pop();
+                break;
+            }
+        }  
+
+
         //opentable
     }
 
