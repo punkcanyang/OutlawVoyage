@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, Users } from 'lucide-react';
 import { useEffect, useState } from "react";
 import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-import { EspoirABI } from "@/abi/Espoir";
+import { Espoir } from "@/contracts/Espoir";
 import { useLocalStorage } from "usehooks-ts";
+import { PageContainer } from "@/components/page-container";
 
-const contractAddress = '0x8539989C5fFce3660937a7d00EC852421428E4E9'
 
 export default function TableSelectionPage() {
   const { address } = useAccount()
@@ -25,8 +25,8 @@ export default function TableSelectionPage() {
 
   // 获取用户加入的航班号
   const { data: voyageId } = useReadContract({
-    abi: EspoirABI,
-    address: contractAddress,
+    abi: Espoir.ABI,
+    address: Espoir.ADDRESS,
     functionName: 'lastPlayerVoyage',
     args: address ? [BigInt(1), address] : undefined,
     query: {
@@ -36,8 +36,8 @@ export default function TableSelectionPage() {
 
   // 获取航程数据
   const { data: voyageData, isLoading: isVoyageDataLoading } = useReadContract({
-    abi: EspoirABI,
-    address: contractAddress,
+    abi: Espoir.ABI,
+    address: Espoir.ADDRESS,
     functionName: 'getVoyage',
     args: voyageId ? [voyageId] : undefined,
     query: {
@@ -51,8 +51,8 @@ export default function TableSelectionPage() {
 
   // 获取所有table
   const { data: tablesData, isLoading: isTablesDataLoading } = useReadContract({
-    abi: EspoirABI,
-    address: contractAddress,
+    abi: Espoir.ABI,
+    address: Espoir.ADDRESS,
     functionName: 'getVoyageAllTables',
     args: voyageId ? [voyageId] : undefined,
     query: {
@@ -121,8 +121,8 @@ export default function TableSelectionPage() {
     if (!voyageId || !address || !cards) return
 
     await createTableWrite({
-      address: contractAddress,
-      abi: EspoirABI,
+      address: Espoir.ADDRESS,
+      abi: Espoir.ABI,
       functionName: 'createTable',
       args: [
         voyageId,
@@ -143,8 +143,8 @@ export default function TableSelectionPage() {
     if (!voyageId || !address || !tablesData) return
 
     await joinTableWrite({
-      address: contractAddress,
-      abi: EspoirABI,
+      address: Espoir.ADDRESS,
+      abi: Espoir.ABI,
       functionName: 'joinTable',
       args: [
         voyageId,
@@ -159,7 +159,7 @@ export default function TableSelectionPage() {
   }
 
   return (
-    <div className="container px-4 max-w-4xl flex min-h-screen flex-col py-12 gap-4">
+    <PageContainer backgroundImage="/images/bg.png">
       <div className="flex items-center mb-4">
         <Button
           variant="ghost"
@@ -228,6 +228,6 @@ export default function TableSelectionPage() {
         <div className="h-[120px]">
         </div>
       </div>
-    </div>
+    </PageContainer>
   );
 }

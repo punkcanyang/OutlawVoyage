@@ -2,6 +2,7 @@
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Star } from "lucide-react";
+import { PageContainer } from "@/components/page-container";
 
 export default function GamePage() {
   const router = useRouter();
@@ -11,7 +12,7 @@ export default function GamePage() {
   }
 
   return (
-    <div className="container px-4 max-w-4xl flex min-h-screen flex-col py-12 gap-4 bg-cover bg-center" style={{ backgroundImage: "url(/images/bg2.jpg)" }}>
+    <PageContainer backgroundImage="/images/bg2.jpg">
       <div className="flex items-center">
         <Button
           variant="ghost"
@@ -31,7 +32,7 @@ export default function GamePage() {
         </div>
       </div>
       <PlayerHand/>
-    </div>
+    </PageContainer>
   );
 }
 
