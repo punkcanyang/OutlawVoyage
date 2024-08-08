@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAccount } from 'wagmi';
 import { useLocalStorage } from 'usehooks-ts';
 import { keccak256, toBytes } from 'viem';
@@ -21,7 +21,7 @@ export function usePlayerCards() {
   }>('cardDetails', {});
   const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
 
-  const getOrGenerateCardDetails = () => {
+  const cardDetailsArray = useMemo(() => {
     if (address && cardDetails[address]) {
       return cardDetails[address];
     }
@@ -32,20 +32,24 @@ export function usePlayerCards() {
       return { hash, plainText, cardType };
     });
 
-    if (address) {
+    return newCardDetails;
+  }, [address, cardDetails]);
+
+  useEffect(() => {
+    if (address && !cardDetails[address]) {
       setCardDetails(prevState => ({
         ...prevState,
-        [address]: newCardDetails
+        [address]: cardDetailsArray
       }));
     }
+  }, [address, cardDetails, cardDetailsArray, setCardDetails]);
 
-    return newCardDetails;
-  }
+  const cardHashes = useMemo(() => cardDetailsArray.map(detail => detail.hash), [cardDetailsArray]);
 
-  const cardDetailsArray = getOrGenerateCardDetails();
-  const cardHashes = cardDetailsArray.map(detail => detail.hash);
-
-  const selectedCard = selectedCardIndex !== null ? cardDetailsArray[selectedCardIndex] : null;
+  const selectedCard = useMemo(() =>
+      selectedCardIndex !== null ? cardDetailsArray[selectedCardIndex] : null,
+    [selectedCardIndex, cardDetailsArray]
+  );
 
   return {
     cardDetailsArray,
