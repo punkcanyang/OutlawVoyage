@@ -8,6 +8,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 import { Providers } from "./providers";
 import { NavHeader } from "@/components/nav-header";
+import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
   title: "Outlaw Voyage",
@@ -22,7 +23,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={cn(
-        "min-h-screen bg-background font-sans antialiased overflow-hidden",
+        "min-h-screen bg-background font-sans antialiased",
         inter.className
       )}>
         <Providers>
@@ -30,6 +31,7 @@ export default function RootLayout({
             <NavHeader />
             {children}
           </div>
+          <Toaster />
         </Providers>
       </body>
     </html>
