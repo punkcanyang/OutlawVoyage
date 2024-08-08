@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from 'react';
-import { useAccount, useWatchContractEvent } from 'wagmi';
+import { useAccount } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { Button } from "@/components/ui/button";
@@ -77,22 +77,8 @@ export default function TableSelectionPage() {
     isPending: isCreateTableLoading,
     data: createTableHash,
   } = useWriteContract()
-  const { isSuccess: isCreateTableSuccess, data: tableReceipt } = useWaitForTransactionReceipt({
+  const {isSuccess: isCreateTableSuccess} = useWaitForTransactionReceipt({
     hash: createTableHash,
-  })
-  useWatchContractEvent({
-    address: Espoir.ADDRESS,
-    abi: Espoir.ABI,
-    eventName: 'TableCreated',
-    onLogs(logs) {
-      console.log('createTable logs!', logs)
-      logs.map(v => {
-        if (v.transactionHash === createTableHash) {
-          const { tableId, voyageId } = v.args
-          router.push(`/table/${tableId}?voyageId=${voyageId}`);
-        }
-      })
-    },
   })
 
   const {
@@ -106,15 +92,27 @@ export default function TableSelectionPage() {
 
   useEffect(() => {
     if (isJoinTableSuccess && selectedTable) {
-      router.push(`/table/${selectedTable}?voyageId=${voyageId}`);
+      router.push(`/table/${selectedTable}`);
     }
   }, [isJoinTableSuccess, selectedTable, router])
+
+  useEffect(() => {
+    if (voyageId) {
+      console.log({voyageId});
+    }
+  }, [voyageId])
 
   useEffect(() => {
     if (voyageData) {
       console.log(voyageData);
     }
   }, [voyageData])
+
+  useEffect(() => {
+    if (isJoinTableSuccess) {
+      console.log(isJoinTableSuccess);
+    }
+  }, [isJoinTableSuccess])
 
   const formattedActiveTables = activeTablesData?.map((table, index) => ({
     id: table.toString(),
@@ -149,6 +147,7 @@ export default function TableSelectionPage() {
         selectedCard.hash,
       ]
     })
+    // 创建成功后刷新tables
   }
 
   const handleJoinTable = async () => {

@@ -33,7 +33,7 @@ export function PlayerHand({
     <Carousel opts={{ align: "start" }} className="w-full">
       <CarouselContent>
         {cardDetails.map((card, index) => (
-          <CarouselItem key={index} className="basis-1/3">
+          <CarouselItem key={index} className="basis-1/2">
             <div className="p-1">
               <Card
                 className={`cursor-pointer ${selectable && selectedCardIndex === index ? 'border-blue-500 border-2' : ''}`}
