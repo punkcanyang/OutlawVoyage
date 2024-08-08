@@ -1,52 +1,30 @@
 "use client"
-import { useState } from 'react';
-import { useRouter } from 'next/navigation'
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Upload } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from "wagmi";
-import { useEffect } from "react";
-import { Espoir } from "@/contracts/Espoir";
-import { keccak256, toBytes, parseEther, formatEther } from "viem";
-import { v4 as uuidv4 } from 'uuid';
-import { useLocalStorage } from "usehooks-ts";
-import { useForm } from 'react-hook-form'
-import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { PageContainer } from "@/components/page-container";
-import { Label } from "@/components/ui/label";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel"
-
-// 定义牌型枚举
-enum CardType {
-  Rock = 'R',
-  Scissors = 'S',
-  Paper = 'P'
-}
-
-// 生成明文的函数
-function generatePlainText(): { plainText: string; cardType: CardType } {
-  const cardTypes = Object.values(CardType);
-  const selectedType = cardTypes[Math.floor(Math.random() * cardTypes.length)] as CardType;
-  return {
-    plainText: `${selectedType}-${uuidv4()}`,
-    cardType: selectedType
-  };
-}
+import { useRouter } from 'next/navigation';
+import { useAccount } from 'wagmi';
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { parseEther } from 'viem';
+import { ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { PageContainer } from '@/components/page-container';
+import { PlayerHand } from '@/app/components/player-hand';
+import { Espoir } from '@/contracts/Espoir';
+import { usePlayerCards } from '@/hooks/use-player-cards';
 
 export default function CruisePage() {
   const router = useRouter();
   const { address } = useAccount();
-  const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(null);
-  const [cardDetails, setCardDetails] = useLocalStorage<{
-    [address: string]: { hash: `0x${string}`; plainText: string; cardType: CardType }[];
-  }>('cardDetails', {});
+  const {
+    cardDetailsArray,
+    cardHashes,
+    selectedCardIndex,
+    setSelectedCardIndex,
+    selectedCard
+  } = usePlayerCards();
 
   const form = useForm({
     defaultValues: {
@@ -54,44 +32,14 @@ export default function CruisePage() {
     }
   })
 
-
-  // 获取或生成当前用户的 cardHashes
-  const getOrGenerateCardDetails = () => {
-    if (address && cardDetails[address]) {
-      return cardDetails[address];
-    }
-
-    const newCardDetails = Array(12).fill(0).map(() => {
-      const { plainText, cardType } = generatePlainText();
-      const hash = keccak256(toBytes(plainText));
-      return { hash, plainText, cardType };
-    });
-
-    if (address) {
-      setCardDetails(prevState => ({
-        ...prevState,
-        [address]: newCardDetails
-      }));
-    }
-
-    return newCardDetails;
-  }
-
-
   const handleSubmit = form.handleSubmit(async (formData) => {
     if (!voyageId) return;
     if (!formData.tgId) {
       alert("请填写 Telegram ID");
       return;
     }
-    if (selectedCardIndex === null) {
-      alert("请选择一张卡牌");
-      return;
-    }
 
-    const cardDetailsArray = getOrGenerateCardDetails();
-    const cardHashes = cardDetailsArray.map(detail => detail.hash);
-    console.log({cardHashes});
+    console.log({selectedCard});
 
     await registerPlayerWrite({
       address: Espoir.ADDRESS,
@@ -155,12 +103,12 @@ export default function CruisePage() {
 
       <Card className="mb-6 px-16 py-8">
         <PlayerHand
-          cardDetails={getOrGenerateCardDetails()}
+          cardDetails={cardDetailsArray}
           selectedCardIndex={selectedCardIndex}
           setSelectedCardIndex={setSelectedCardIndex}
+          selectable={false}
         />
       </Card>
-
 
       <form className="space-y-4" onSubmit={handleSubmit}>
         <Card className="mb-6">
@@ -182,42 +130,4 @@ export default function CruisePage() {
       </form>
     </PageContainer>
   );
-}
-
-export function PlayerHand({
-  cardDetails,
-  selectedCardIndex,
-  setSelectedCardIndex
-}: {
-  cardDetails: { hash: `0x${string}`; plainText: string; cardType: CardType }[],
-  selectedCardIndex: number | null,
-  setSelectedCardIndex: (index: number | null) => void
-}) {
-  const truncateHash = (hash: string) => {
-    return `${hash.slice(0, 6)}...${hash.slice(-6)}`;
-  }
-
-  return (
-    <Carousel opts={{ align: "start" }} className="w-full">
-      <CarouselContent>
-        {cardDetails.map((card, index) => (
-          <CarouselItem key={index} className="basis-1/2">
-            <div className="p-1">
-              <Card
-                className={`cursor-pointer ${selectedCardIndex === index ? 'border-blue-500 border-2' : ''}`}
-                onClick={() => setSelectedCardIndex(index)}
-              >
-                <CardContent className="flex flex-col items-center justify-center p-6 h-48">
-                  <span className="text-3xl font-semibold mb-2">{card.cardType}</span>
-                  <span className="text-xs break-all">{truncateHash(card.hash)}</span>
-                </CardContent>
-              </Card>
-            </div>
-          </CarouselItem>
-        ))}
-      </CarouselContent>
-      <CarouselPrevious />
-      <CarouselNext />
-    </Carousel>
-  )
 }
