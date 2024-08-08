@@ -514,13 +514,13 @@ contract Espoir is Ownable, ReentrancyGuard {
             voyage.players[_firstOwner].cardCount > 0,
             "Player has no cards"
         );
-        voyage.tablesCount++;
-        voyage.globaltbCount++;
         //提交有效的卡牌hash，提交前需要检查hash是否有效
         require(
             checkCardValidity(_voyageId, _firstOwner, _firstHash),
             "Invalid card hash"
         );
+        voyage.tablesCount++;
+        voyage.globaltbCount++;
         voyage.tables[voyage.globaltbCount] = Table({
             firstHash: _firstHash,
             firstPlaintext: "",
@@ -533,9 +533,10 @@ contract Espoir is Ownable, ReentrancyGuard {
 
         voyage.allTables.push(voyage.globaltbCount);
         voyage.tablesOnlyOne.push(voyage.globaltbCount);
-
+        // 赋值 table id
+        tableId = voyage.globaltbCount;
         emit TableCreated(_voyageId, tableId);
-        return voyage.globaltbCount;
+        return tableId;
     }
 
     // TODO:加入Table
