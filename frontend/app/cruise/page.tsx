@@ -80,11 +80,10 @@ export default function CruisePage() {
   })
 
   useEffect(() => {
-    console.log(isRegisterPlayerSuccess);
     if (isRegisterPlayerSuccess) {
-      router.push('/table')
+      router.push('/table');
     }
-  }, [isRegisterPlayerSuccess]);
+  }, [isRegisterPlayerSuccess, router])
 
   return (
     <PageContainer backgroundImage="/images/bg.png" className="text-white">
