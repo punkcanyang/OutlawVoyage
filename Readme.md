@@ -1,5 +1,9 @@
 ### Outlaw Voyage 逆境无赖
 
+- web3://outlawvoyage.w3q:3334
+- [https://outlawvoyage.w3q.w3q-g.w3link.io/](https://outlawvoyage.w3q.w3q-g.w3link.io/)
+- [https://outlaw-voyage.vercel.app/](https://outlaw-voyage.vercel.app/)
+
 ### 1. 项目简介
 
 - **游戏名称**：Outlaw Voyage 逆境无赖
