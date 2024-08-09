@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation';
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Users } from "lucide-react";
+import { ArrowLeft, Star, Users } from "lucide-react";
 import { PageContainer } from "@/components/page-container";
 import { PlayerHand } from "@/app/components/player-hand";
 import { Espoir } from '@/contracts/Espoir';
 import { usePlayerCards } from '@/hooks/use-player-cards';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
+import { useGameContext } from '@/contexts/game-context'; // Assuming you have created a GameContext
 
 export default function TableSelectionPage() {
   const { address } = useAccount()
@@ -25,6 +26,8 @@ export default function TableSelectionPage() {
   } = usePlayerCards();
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [isJoinDialogOpen, setIsJoinDialogOpen] = useState(false);
+  const { setGameData } = useGameContext(); // Using GameContext
+  const [playerStars, setPlayerStars] = useState<number | null>(null);
 
   const handleGoBack = () => {
     router.back();
@@ -89,11 +92,24 @@ export default function TableSelectionPage() {
       logs.map(v => {
         if (v.transactionHash === createTableHash) {
           const { tableId, voyageId } = v.args
-          router.push(`/table/${tableId}?voyageId=${voyageId}`);
+          console.log("tableId: ", tableId);
+          console.log("tableId: ", voyageId);
+          toast({
+            title: "创建成功",
+            description: "等待对手",
+          });
+          if (tableId && voyageId) {
+            setGameData({ tableId: tableId.toString(), voyageId: voyageId.toString() });
+            router.push('/game');
+          }
         }
       })
     },
   })
+
+  useEffect(() => {
+
+  }, [isCreateTableSuccess]);
 
   const {
     writeContractAsync: joinTableWrite,
@@ -105,10 +121,12 @@ export default function TableSelectionPage() {
   })
 
   useEffect(() => {
+    if (!voyageId) return
     if (isJoinTableSuccess && selectedTable) {
-      router.push(`/table/${selectedTable}?voyageId=${voyageId}`);
+      setGameData({ tableId: selectedTable, voyageId: voyageId.toString() });
+      router.push('/game');
     }
-  }, [isJoinTableSuccess, selectedTable, router])
+  }, [isJoinTableSuccess, selectedTable, voyageId, router, setGameData])
 
   useEffect(() => {
     if (voyageData) {
@@ -202,9 +220,25 @@ export default function TableSelectionPage() {
     }
   }
 
+  const { data: playerData } = useReadContract({
+    abi: Espoir.ABI,
+    address: Espoir.ADDRESS,
+    functionName: 'getPlayer',
+    args: (address && voyageId) ? [BigInt(voyageId), address] : undefined,
+    query: {
+      enabled: !!address && !!voyageId,
+    },
+  })
+
+  useEffect(() => {
+    if (playerData) {
+      setPlayerStars(Number(playerData[1]));
+    }
+  }, [playerData]);
+
   return (
     <PageContainer backgroundImage="/images/bg.png">
-      <div className="flex items-center mb-4">
+      <div className="flex items-center mb-4 text-white">
         <Button
           variant="ghost"
           size="icon"
@@ -264,24 +298,13 @@ export default function TableSelectionPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-center border border-gray-600 p-4">
+      <div className="flex items-center justify-center border border-gray-600 p-4 text-white">
         <Users size={18} className="mr-2"/>
-        <span>我的: 当前玩家星星数量</span>
-      </div>
-
-      <div className="flex flex-col border border-gray-600 p-4">
-        <div className="flex justify-between items-center">
-          <h3>公共聊天室</h3>
-          <div className="flex space-x-2">
-            <Button variant="outline">
-              <Users size={18} className="mr-2"/>
-              玩家总数
-            </Button>
-            <Button variant="outline">玩家列表</Button>
+        <div className="flex gap-2">
+          <span>我的星星:</span>
+          <div className="text-amber-500 flex gap-2">
+            {playerStars !== null ? Array(playerStars).fill(0).map((_, i) => <Star key={i} />) : '加载中...'}
           </div>
-        </div>
-
-        <div className="h-[120px]">
         </div>
       </div>
 
