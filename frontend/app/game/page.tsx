@@ -36,6 +36,9 @@ export default function GamePage() {
 
   const [isPlayerOne, setIsPlayerOne] = useState<boolean | null>(null);
 
+  const [playerOneAddress, setPlayerOneAddress] = useState<string | undefined>(undefined);
+  const [playerTwoAddress, setPlayerTwoAddress] = useState<string | undefined>(undefined);
+
   const {
     data: tableData
   } = useReadContract({
@@ -58,36 +61,53 @@ export default function GamePage() {
           }
           setFirstPlaintext(firstPlain);
           setSecondPlaintext(secondPlain);
-          return secondPlain ? false : 3000
+
+          const isPlayerOne = address === firstOwner;
+          const shouldContinueRefetch = isPlayerOne ? !secondPlain : !firstPlain;
+
+          return shouldContinueRefetch ? 3000 : false;
         }
       },
     },
   })
   console.log("tableData: ", tableData);
 
-  const { data: playerData } = useReadContract({
+  useEffect(() => {
+    if (tableData) {
+      const [,,,,firstOwner, secondOwner] = tableData;
+      setPlayerOneAddress(firstOwner);
+      setPlayerTwoAddress(secondOwner);
+    }
+  }, [tableData]);
+
+  const { data: playerOneData } = useReadContract({
     abi: Espoir.ABI,
     address: Espoir.ADDRESS,
     functionName: 'getPlayer',
-    args: (address && voyageId) ? [BigInt(voyageId), address] : undefined,
+    args: (playerOneAddress && voyageId) ? [BigInt(voyageId), playerOneAddress] : undefined,
     query: {
-      enabled: !!address && !!voyageId,
-      refetchInterval: 5000,
+      enabled: !!playerOneAddress && !!voyageId,
+    },
+  })
+
+  const { data: playerTwoData } = useReadContract({
+    abi: Espoir.ABI,
+    address: Espoir.ADDRESS,
+    functionName: 'getPlayer',
+    args: (playerTwoAddress && voyageId) ? [BigInt(voyageId), playerTwoAddress] : undefined,
+    query: {
+      enabled: !!playerTwoAddress && !!voyageId,
     },
   })
 
   useEffect(() => {
-    console.log("playerData: ", playerData);
-    if (playerData) {
-      setPlayerStars(Number(playerData[1]));
+    if (playerOneData && playerTwoData && address) {
+      const myStars = address === playerOneAddress ? Number(playerOneData[1]) : Number(playerTwoData[1]);
+      const opponentStars = address === playerOneAddress ? Number(playerTwoData[1]) : Number(playerOneData[1]);
+      setPlayerStars(myStars);
+      setOpponentStars(opponentStars);
     }
-  }, [playerData]);
-
-  useEffect(() => {
-    if (playerStars !== null) {
-      setOpponentStars(3 - playerStars);
-    }
-  }, [playerStars]);
+  }, [playerOneData, playerTwoData, address, playerOneAddress, playerTwoAddress]);
 
   useEffect(() => {
     if (firstPlaintext && secondPlaintext) {
