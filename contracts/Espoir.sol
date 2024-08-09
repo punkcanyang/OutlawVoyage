@@ -594,7 +594,7 @@ contract Espoir is Ownable, ReentrancyGuard {
         require(table.isEnded == false, "Table already ended");
         if (table.firstOwner == _commiter) {
             if (!checkPlainText(table.firstHash, _plainText)) {
-                voyage.players[table.firstOwner].stars = 0;
+                voyage.players[table.firstOwner].status = "O";
                 table.isEnded = true;
             }
             table.firstPlaintext = _plainText;
