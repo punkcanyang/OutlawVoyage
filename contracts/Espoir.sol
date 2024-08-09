@@ -632,8 +632,6 @@ contract Espoir is Ownable, ReentrancyGuard {
                 voyage.players[table.firstOwner].cardCount--;
                 voyage.players[table.secondOwner].cardCount--;
             } else {
-                voyage.players[table.firstOwner].cardCount--;
-                voyage.players[table.secondOwner].cardCount--;
                 // 胜者加一颗星星,输者扣一颗星星,比较石头剪刀布,扣除对应牌的计数
                 if (firstplainText[0] == "R" && secondplainText[0] == "S") {
                     voyage.players[table.firstOwner].stars++;
