@@ -785,10 +785,10 @@ contract Espoir is Ownable, ReentrancyGuard {
         // 获取船
         Ship storage ship = ships[_shipId];
         // 判断当前的区块是否大于等待区块+游戏时间区块
-        require(
-            block.number > ship.startBlock + ship.waitBlocks + ship.gameBlocks,
-            "game not ended"
-        );
+        // require(
+        //     block.number >= ship.startBlock + ship.waitBlocks + ship.gameBlocks,
+        //     "game not ended"
+        // );
         // 判断输赢，遍历玩家
         uint winStarCount = 0; // 全部胜星数量
         uint totalEntryFee = (ship.entryFee *
@@ -815,6 +815,9 @@ contract Espoir is Ownable, ReentrancyGuard {
                 voyage.players[playerAddress].stars) / winStarCount;
             payable(playerAddress).transfer(winAmount);
         }
+        // 设置为已经结算
+        voyage.isSettled = true;
+        emit VoyageSettled(_shipId, _voyageId);
     }
 
     // TODO: 庄家抽成储存到指定合约地址的功能 OwnerOnly（后续设计败部复活赛用）
