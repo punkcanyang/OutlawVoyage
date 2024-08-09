@@ -36,8 +36,8 @@ export default function GamePage() {
 
   const [isPlayerOne, setIsPlayerOne] = useState<boolean | null>(null);
 
-  const [playerOneAddress, setPlayerOneAddress] = useState<string | undefined>(undefined);
-  const [playerTwoAddress, setPlayerTwoAddress] = useState<string | undefined>(undefined);
+  const [playerOneAddress, setPlayerOneAddress] = useState<`0x${string}` | undefined>(undefined);
+  const [playerTwoAddress, setPlayerTwoAddress] = useState<`0x${string}` | undefined>(undefined);
 
   const {
     data: tableData
