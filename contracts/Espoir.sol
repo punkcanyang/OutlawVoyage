@@ -102,6 +102,7 @@ contract Espoir is Ownable, ReentrancyGuard {
         uint globaltbCount; //当前生成过的桌子总量
         address[] playerArr; // 玩家数组
         address[] winPlayerArr; // 胜利玩家地址数组
+        mapping(address => uint) winPlayerAmount; // 胜利玩家赢得钱
         uint[] allTables; //存储当前正在活动的桌子的下标
         uint[] tablesOnlyOne; //显示只有一个玩家的桌子
         mapping(uint => Table) tables; // Table映射
@@ -625,6 +626,8 @@ contract Espoir is Ownable, ReentrancyGuard {
                 voyage.players[table.firstOwner].cardCount--;
                 voyage.players[table.secondOwner].cardCount--;
             } else {
+                voyage.players[table.firstOwner].cardCount--;
+                voyage.players[table.secondOwner].cardCount--;
                 // 胜者加一颗星星,输者扣一颗星星,比较石头剪刀布,扣除对应牌的计数
                 if (firstplainText[0] == "R" && secondplainText[0] == "S") {
                     voyage.players[table.firstOwner].stars++;
@@ -814,6 +817,8 @@ contract Espoir is Ownable, ReentrancyGuard {
             uint winAmount = (totalEntryFee *
                 voyage.players[playerAddress].stars) / winStarCount;
             payable(playerAddress).transfer(winAmount);
+            // 更新玩家赚取的钱
+            voyage.winPlayerAmount[playerAddress] = winAmount;
         }
         // 设置为已经结算
         voyage.isSettled = true;
