@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { GameProvider } from '@/contexts/game-context';
 
 import "./globals.css";
 
@@ -26,13 +27,15 @@ export default function RootLayout({
         "min-h-screen bg-background font-sans antialiased",
         inter.className
       )}>
-        <Providers>
-          <div className="relative flex flex-col h-screen">
-            <NavHeader />
-            {children}
-          </div>
-          <Toaster />
-        </Providers>
+        <GameProvider>
+          <Providers>
+            <div className="relative flex flex-col h-screen">
+              <NavHeader />
+              {children}
+            </div>
+            <Toaster />
+          </Providers>
+        </GameProvider>
       </body>
     </html>
   );
