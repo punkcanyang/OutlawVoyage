@@ -1,12 +1,15 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
+import { GameProvider } from '@/contexts/game-context';
 
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
 import { Providers } from "./providers";
+import { NavHeader } from "@/components/nav-header";
+import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
   title: "Outlaw Voyage",
@@ -24,9 +27,15 @@ export default function RootLayout({
         "min-h-screen bg-background font-sans antialiased",
         inter.className
       )}>
-        <Providers>
-          {children}
-        </Providers>
+        <GameProvider>
+          <Providers>
+            <div className="relative flex flex-col h-screen">
+              <NavHeader />
+              {children}
+            </div>
+            <Toaster />
+          </Providers>
+        </GameProvider>
       </body>
     </html>
   );
